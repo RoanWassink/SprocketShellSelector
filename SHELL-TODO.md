@@ -6,7 +6,7 @@
 - [x] Build against installed current interop; known MSB3246 broad-reference warning.
 - [x] Refuse patches if combined shell Harmony owner already exists; material dependency establishes load order.
 - [x] Confirm stable v0.4.0 backup SHA256 matches handoff.
-- [ ] Installation: two Sprocket processes were running; no game files changed.
+- [x] Installed on 2026-10-02 after Sprocket exited; exact stable v0.4.0 material DLL restored, shell v0.1.0 installed, backups retained.
 - [ ] Startup log: Material Selector v0.4.0 and Shell Selector v0.1.0 both loaded.
 - [ ] Existing APFSDS vehicle, vanilla shot, save/load, clone and JSON restart test.
 
@@ -56,4 +56,6 @@ The complete loading and cost call chains still need inspection before patching.
 `NewFragment` and `ApplyFragmentHits`. These members alone do not establish where
 the spall cone is generated. The current tested hook scales health damage during
 custom impacts; it does not change the spall cone or fragment count.
+
+
 
