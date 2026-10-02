@@ -1,5 +1,8 @@
 # Sprocket Shell Selector
 
+**Release candidate 1: v0.6.0.** Accepted APHE simulator spall and live impact effects. The experimental v0.7.0 work is separate from this candidate.
+
+
 Experimental shell profiles for Sprocket: APFSDS and APHE, selectable in the cannon inspector and armour penetration simulator. Vibe coded with AI assistance.
 
 ## Installation

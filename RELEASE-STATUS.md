@@ -1,0 +1,1 @@
+Release candidate 1 is v0.6.0, accepted by the user after simulator and live APHE testing. The RC1 DLL is unchanged. Experimental cone/visual/normalization work is in experiment-v0.7.0. RC1 SHA256 BB313FC2646C97D2871D81659CE4AC3922E8F731CA636B51EEC7C47F829E2ED3.
