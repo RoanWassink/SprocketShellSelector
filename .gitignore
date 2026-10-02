@@ -1,0 +1,10 @@
+bin/
+obj/
+tests/bin/
+tests/obj/
+work/
+outputs/
+*.dll
+*.pdb
+*.zip
+.research/

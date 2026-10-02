@@ -1,0 +1,25 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GameDir Condition="'$(GameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Sprocket</GameDir>
+    <PathMap>$(MSBuildThisFileDirectory)=/shell-selector/</PathMap>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="$(GameDir)\BepInEx\core\*.dll"
+               Exclude="$(GameDir)\BepInEx\core\TerraFX*.dll">
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="$(GameDir)\BepInEx\interop\*.dll">
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="CheckSprocketGameDir" BeforeTargets="ResolveAssemblyReferences"
+          Condition="!Exists('$(GameDir)\BepInEx\interop') Or !Exists('$(GameDir)\BepInEx\core\BepInEx.Core.dll')">
+    <Error Text="GameDir '$(GameDir)' has no working Sprocket BepInEx 6 IL2CPP installation. Start the working Sprocket Mod Loader once first." />
+  </Target>
+</Project>
+
