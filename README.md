@@ -16,9 +16,9 @@ Keep a backup of your previous DLL and configuration before installing an experi
 
 **APFSDS** uses a subcalibre penetrator calculated from the full gun calibre, rod length, density and ballistic constants. Spall increases as remaining native penetration decreases. The cone widens by up to 15% relative to its configured base width as remaining kinetic energy increases.
 
-**APHE** uses reduced-penetration AP ballistics. Normal AP penetration and spall continue until traversed armour reaches the fuse threshold, including accumulated thin plates within one penetration simulation. Defaults: 25 mm RHA threshold and 0.5 ms delay. The delay becomes a travel distance behind the plate and is shortened when an intervening surface is detected. The internal burst generates 96 fragments with spherical directions, 2.4 kg total fragment mass and 650 m/s speed. The intact shell stops; fragments continue through the damage simulation.
+**APHE** uses reduced-penetration AP ballistics and the native AP spall simulation. By default it multiplies spall volume and fragment-count input by four. Fragment count remains subject to the native 32-fragment cap per burst. Direction, origin, speed, material handling and projectile continuation remain native AP. A visual-only native explosion effect is requested on live impacts that produce spall; it does not add blast damage. The armour simulator uses its normal trajectory visualization.
 
-These are configurable gameplay approximations. New fuse behaviour and balance need in-game testing. Shell selection applies to cannons sharing a blueprint and overrides loaded AP/APHE rounds; ammunition storage, loading and costs remain vanilla.
+These are configurable gameplay approximations. The enhanced APHE behaviour and explosion visual need in-game testing. Shell selection applies to cannons sharing a blueprint and overrides loaded AP/APHE rounds; ammunition storage, loading and costs remain vanilla.
 
 ## Armour simulator
 
@@ -29,11 +29,11 @@ Choose a shell profile in the simulator. Calibre remains the full gun calibre, i
 Edit these files under `BepInEx/config` with the game closed:
 
 - `sprocket.shellselector.shells.json`: shell geometry, density, velocity and penetration constants.
-- `sprocket.shellselector.spall.json`: spall balance, APHE fuse and burst settings.
+- `sprocket.shellselector.spall.json`: spall balance and APHE amplification settings.
 
-Existing configuration is imported automatically when the new filenames are first created. Previous files are preserved; the new files then become authoritative. Custom burst settings are preserved. The previous untouched APHE burst defaults are upgraded to the stronger burst described above.
+Existing configuration is imported automatically when the new filenames are first created. Previous files are preserved; the new files then become authoritative. Custom burst settings are preserved.
 
-APHE settings: `apheFuseRhaMm`, `apheFuseDelayMilliseconds`, `apheFragmentCount` (1–256), `apheFragmentMass`, `apheFragmentSpeed`, and `apheFragmentK`. Native fragment generation runs in batches of up to 32. APFSDS settings: `coneMultiplier`, `coneEnergyWidening`, `thinRatio`, `thickRatio`, and `remainingPenetrationExponent`. Legacy thickness anchors are accepted but do not control the current balance.
+APHE settings: `apheSpallMultiplier` (1–12, default 4) and `apheExplosionEffect` (default true). APFSDS settings: `coneMultiplier`, `coneEnergyWidening`, `thinRatio`, `thickRatio`, and `remainingPenetrationExponent`. Older fuse, spherical burst and thickness settings are accepted for configuration compatibility but do not control current behaviour.
 
 ## Build and testing
 
@@ -42,3 +42,4 @@ Install .NET SDK 8. Build with `dotnet build SprocketShellSelector.csproj -c Rel
 ## Rollback
 
 Close the game and restore the previous shell DLL and its configuration from your backup.
+

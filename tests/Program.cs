@@ -183,13 +183,6 @@ foreach(var invalidRemaining in new[]{double.NaN,double.PositiveInfinity,-.1}) {
 var oldSpallJson=SpallBalance.ToJson(spallSettings).Replace(",\n  \"remainingPenetrationExponent\": 1","");
 Check(SpallBalance.Parse(oldSpallJson).RemainingPenetrationExponent==1,"existing spall configuration defaults to linear remaining penetration model");
 Console.WriteLine($"v0.4.0 PASS: {checks} checks.");
-var fuse=new ApheFuse();
-Check(!fuse.Traverse((IntPtr)1,1,10,spallSettings),"thin first plate does not arm APHE");
-Check(!fuse.Traverse((IntPtr)1,1,10,spallSettings) && fuse.AccumulatedRhaMm==10,"repeated burst for same segment cannot arm fuse twice");
-Check(!fuse.Traverse((IntPtr)1,2,10,spallSettings),"two thin plates below RHA threshold retain AP continuation");
-Check(fuse.Traverse((IntPtr)1,3,5,spallSettings),"thin plates cumulatively arm fuse at threshold");
-Check(new ApheFuse().Traverse((IntPtr)2,1,30,spallSettings),"single sufficiently thick traversed plate arms APHE");
-Check(!new ApheFuse().Traverse((IntPtr)2,1,5,spallSettings),"new shell does not inherit another shell fuse state");
 Check(SpallBalance.ConeFactor(0,spallSettings)==.3,"exhausted kinetic energy retains base cone");
 Check(Math.Abs(SpallBalance.ConeFactor(.5,spallSettings)-.3225)<1e-12,"half kinetic energy widens cone by seven point five percent");
 Check(Math.Abs(SpallBalance.ConeFactor(1,spallSettings)-.345)<1e-12,"full kinetic energy widens cone by fifteen percent");
@@ -207,3 +200,13 @@ try {
  Check(File.ReadAllText(currentFile)==profileJson,"new filename remains authoritative after migration");
 } finally {Directory.Delete(configTemp,true);}
 Console.WriteLine($"v0.5.0 PASS: {checks} checks.");
+foreach(var invalidMultiplier in new[]{0d,13d,double.NaN}){
+ var rejected=false;try{SpallBalance.Validate(spallSettings with{ApheSpallMultiplier=invalidMultiplier});}catch(FormatException){rejected=true;}
+ Check(rejected,"invalid APHE native spall multiplier rejected");
+}
+var legacyBurstConfig=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"../../../../outputs/v0.5.0/config/sprocket.shellselector.spall.json"));
+if(File.Exists(legacyBurstConfig)){
+ var legacyBurst=SpallBalance.Parse(File.ReadAllText(legacyBurstConfig));
+ Check(legacyBurst.ApheSpallMultiplier==4 && legacyBurst.ApheExplosionEffect,"previous fuse config imports new native AP defaults without reset");
+}
+Console.WriteLine($"v0.6.0 PASS: {checks} checks.");

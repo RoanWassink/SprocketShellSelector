@@ -115,7 +115,7 @@ internal static class RuntimeShellSelection
                     ui.InfoField($"{dart.Length * 1000:0} mm long | {dart.Mass:0.00} kg", 2);
                     ui.InfoField($"{dart.Velocity:0} m/s | {pen:0} mm base RHA penetration", 2);
                     ui.InfoField(Profile(blueprint)!.Id == "aphe"
-                        ? "APHE: reduced penetration | armour-triggered fuse and delayed internal burst"
+                        ? "APHE: reduced penetration | amplified native AP spall"
                         : Profile(blueprint)!.Id == "apfsds" ? "APFSDS: narrow cone | spall increases as remaining penetration falls"
                         : $"Fragment damage: {dart.DamageMultiplier:P0} | no explosive filler", 2);
                 }
@@ -231,7 +231,7 @@ internal static class RuntimeShellSelection
             {
                 impactDamageFactor = factor;
                 if (ImpactProfiles.TryGetValue(projectile.Definition.Guid.ToString(), out var impactProfile))
-                    RuntimeSpall.Impact = new() { ProfileId = impactProfile.Id, GunDiameter = impactProfile.GunDiameter };
+                    RuntimeSpall.Impact = new() { ProfileId = impactProfile.Id, GunDiameter = impactProfile.GunDiameter, LiveImpact=true };
                 __state = __state with { IsDart = true };
                 if (diagnostics.Value) Plugin.ModLog.LogInfo($"[APFSDS Beta] IMPACT projectile={projectile.ID} speed={projectile.velocity.magnitude:0.0}m/s damageFactor={factor:0.00}");
             }

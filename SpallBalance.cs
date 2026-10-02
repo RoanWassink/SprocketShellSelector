@@ -1,23 +1,12 @@
 using System.Text.Json;
 namespace SprocketShellSelector;
-internal sealed class ApheFuse
-{
-    private readonly HashSet<(IntPtr,int)> segments = new();
-    internal double AccumulatedRhaMm {get;private set;}
-    internal bool Traverse(IntPtr simulation,int segment,double rhaMm,SpallSettings settings)
-    {
-        if(!double.IsFinite(rhaMm) || rhaMm<0) throw new ArgumentOutOfRangeException(nameof(rhaMm));
-        if(segments.Add((simulation,segment))) AccumulatedRhaMm+=rhaMm;
-        return SpallBalance.FuseArmed(AccumulatedRhaMm,settings);
-    }
-}
 internal sealed record SpallSettings(double ConeMultiplier = .3, double ThinCalibres = .15,
     double MiddleCalibres = .75, double ThickCalibres = 1.5, double ThinRatio = .08,
     double MiddleRatio = 1, double ThickRatio = 1.25, double CurveExponent = 3,
     int ApheFragmentCount = 96, double ApheFragmentMass = 2.4, double ApheFragmentSpeed = 650,
     int ApheFragmentK = 8000, double RemainingPenetrationExponent = 1,
     double ApheFuseRhaMm = 25, double ApheFuseDelayMilliseconds = .5,
-    double ConeEnergyWidening = .15);
+    double ConeEnergyWidening = .15, double ApheSpallMultiplier = 4, bool ApheExplosionEffect = true);
 internal static class SpallBalance
 {
     internal static void Validate(SpallSettings s)
@@ -30,13 +19,13 @@ internal static class SpallBalance
         Range(s.ApheFragmentCount,1,256); Range(s.ApheFragmentMass,.001,10); Range(s.ApheFragmentSpeed,10,1500); Range(s.ApheFragmentK,4000,65535);
         Range(s.RemainingPenetrationExponent,.25,4);
         Range(s.ApheFuseRhaMm,1,200); Range(s.ApheFuseDelayMilliseconds,0,5); Range(s.ConeEnergyWidening,0,.5);
+        Range(s.ApheSpallMultiplier,1,12);
     }
     internal static double ConeFactor(double remainingEnergyFraction, SpallSettings s)
     {
         if(!double.IsFinite(remainingEnergyFraction) || remainingEnergyFraction<0) throw new ArgumentOutOfRangeException(nameof(remainingEnergyFraction));
         return s.ConeMultiplier*(1+s.ConeEnergyWidening*Math.Clamp(remainingEnergyFraction,0,1));
     }
-    internal static bool FuseArmed(double accumulatedRhaMm, SpallSettings s) => accumulatedRhaMm>=s.ApheFuseRhaMm;
     internal static double RemainingPenetrationRatio(double remainingFraction, SpallSettings s)
     {
         if (!double.IsFinite(remainingFraction) || remainingFraction < 0) throw new ArgumentOutOfRangeException(nameof(remainingFraction));
@@ -74,7 +63,7 @@ internal static class SpallBalance
         var root=doc.RootElement;
         var expected=new HashSet<string>(StringComparer.Ordinal){"coneMultiplier","thinCalibres","middleCalibres","thickCalibres","thinRatio","middleRatio","thickRatio","curveExponent","apheFragmentCount","apheFragmentMass","apheFragmentSpeed","apheFragmentK"};
         if(root.ValueKind != JsonValueKind.Object) throw new FormatException("Expected spall settings object.");
-        var optional=new HashSet<string>(StringComparer.Ordinal){"remainingPenetrationExponent","apheFuseRhaMm","apheFuseDelayMilliseconds","coneEnergyWidening"};
+        var optional=new HashSet<string>(StringComparer.Ordinal){"remainingPenetrationExponent","apheFuseRhaMm","apheFuseDelayMilliseconds","coneEnergyWidening","apheSpallMultiplier","apheExplosionEffect"};
         foreach(var p in root.EnumerateObject()) if(!expected.Remove(p.Name) && !optional.Remove(p.Name)) throw new FormatException("Unknown or duplicate spall setting: "+p.Name);
         if(expected.Count != 0) throw new FormatException("Missing spall settings.");
         var s=JsonSerializer.Deserialize<SpallSettings>(json,new JsonSerializerOptions{PropertyNamingPolicy=JsonNamingPolicy.CamelCase})!;

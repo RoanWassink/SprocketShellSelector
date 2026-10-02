@@ -100,3 +100,12 @@ custom impacts; it does not change the spall cone or fragment count.
 - [x] 122 managed checks and release build pass.
 - [ ] Verify APHE thin plates, cumulative spaced plates, stopped rounds, fuse delay and internal damage in simulator and live fire.
 - [ ] Verify APFSDS cone width at multiple remaining energy values.
+
+## v0.6.0
+- [x] User screenshots/logs show APHE sphere is not producing reliable evaluated damage paths; fuse/sphere custom route removed.
+- [x] APHE native AP origin/directions/material/speed/profile/continuation preserved; 4x spall volume/count input with native cap.
+- [x] Optional visual-only native explosion hook for actual shots; lower APHE penetration retained.
+- [x] APFSDS accepted behaviour preserved; existing native angle-based normalization inspected, no custom plate-following bend.
+- [x] Release build and 120 managed checks pass.
+- [ ] Repeat APHE simulator test from above/side at unchanged settings and sliders moving both directions.
+- [ ] Live APHE damage and explosion effect validation.

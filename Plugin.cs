@@ -5,7 +5,7 @@ using HarmonyLib;
 using Il2CppInterop.Runtime;
 using UnityEngine.Events;
 namespace SprocketShellSelector;
-[BepInPlugin("nl.roan.sprocket.shellselector", "Sprocket Shell Selector", "0.5.0")]
+[BepInPlugin("nl.roan.sprocket.shellselector", "Sprocket Shell Selector", "0.6.0")]
 [BepInDependency("nl.roan.sprocket.materialselector", BepInDependency.DependencyFlags.SoftDependency)]
 public sealed class Plugin : BasePlugin
 {
@@ -29,7 +29,7 @@ public sealed class Plugin : BasePlugin
             Log.LogError($"Shell selector disabled: {ex}");
             return;
         }
-        Log.LogInfo("Sprocket Shell Selector v0.5.0 loaded; shell and spall/APHE patches loaded.");
+        Log.LogInfo("Sprocket Shell Selector v0.6.0 loaded; shell and spall/APHE patches loaded.");
         var simulatorHarmony = new Harmony("nl.roan.sprocket.shellselector.simulator");
         try
         {
@@ -41,6 +41,17 @@ public sealed class Plugin : BasePlugin
         {
             simulatorHarmony.UnpatchSelf();
             Log.LogError($"[Armour Simulator] Disabled; shell and spall/APHE patches remain active: {ex}");
+        }
+        var effectsHarmony=new Harmony("nl.roan.sprocket.shellselector.effects");
+        try
+        {
+            effectsHarmony.PatchAll(typeof(RuntimeShellEffects));
+            Log.LogInfo("[APHE Effect] Optional native explosion visual hook loaded.");
+        }
+        catch(Exception ex)
+        {
+            effectsHarmony.UnpatchSelf();
+            Log.LogError($"[APHE Effect] Visual hook disabled; shell behaviour remains active: {ex}");
         }
     }
 }
