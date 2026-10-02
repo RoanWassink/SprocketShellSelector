@@ -17,7 +17,7 @@ internal static class RuntimeShellEffects
             __instance.PlayEffect(new ProjectileEffectInfo {
                 Type=ProjectileEffectType.Explosion,Position=context.ExplosionPosition,
                 HitNormal=__0.HitNormal,HitVelocity=__0.HitVelocity,Parent=__0.Parent,
-                Calibre=(ushort)Math.Clamp(Math.Round(context.GunDiameter*1000),1,ushort.MaxValue)
+                Calibre=(ushort)Math.Clamp(Math.Round(context.GunDiameter*1000*RuntimeSpall.Settings.ApheExplosionScale),1,ushort.MaxValue)
             });
             Plugin.ModLog.LogInfo("[APHE Effect] Native explosion visual requested; no added blast damage.");
         }

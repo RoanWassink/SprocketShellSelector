@@ -15,6 +15,7 @@ internal static class RuntimeSpall
 {
     internal static SpallSettings Settings = new();
     [ThreadStatic] internal static ShellImpactContext? Impact;
+    [ThreadStatic] private static UnityEngine.Vector3? apheAxis;
     internal static void Configure()
     {
         var path=Path.Combine(Paths.ConfigPath,"sprocket.shellselector.spall.json");
@@ -25,11 +26,18 @@ internal static class RuntimeSpall
         Settings=SpallBalance.Parse(File.ReadAllText(path));
         Plugin.ModLog.LogInfo("[Spall] APFSDS remaining-penetration/cone and APHE amplified native AP spall enabled. "+path);
     }
-    private sealed record BurstState(int CountBefore,bool Custom,bool Aphe,UnityEngine.Vector3 ExplosionPosition=default);
+    private sealed record BurstState(int CountBefore,bool Custom,bool Aphe,UnityEngine.Vector3 ExplosionPosition=default,UnityEngine.Vector3? PreviousAxis=null);
+    [HarmonyPrefix,HarmonyPatch(typeof(CompoundStructure),nameof(CompoundStructure.Penetrate))]
+    private static void ExperimentalNormalization(ref PenetratorInfo penetrator)
+    {
+        if(Impact?.ProfileId!="apfsds" || !Settings.ApfsdsDisableClassicNormalization)return;
+        penetrator=new PenetratorInfo(penetrator.Mass,penetrator.Diameter,penetrator.Density,0,
+            penetrator.PenetratorConstant,penetrator.Position,penetrator.Velocity);
+    }
     [HarmonyPrefix,HarmonyPatch(typeof(CompoundStructure),nameof(CompoundStructure.CreateSpallBurst))]
     private static void Burst(PenetrationSimulation simulation,ref CompoundStructure.SpallSpawnBurst o,out BurstState __state)
     {
-        __state=new(simulation.FragmentCount,false,false);
+        __state=new(simulation.FragmentCount,false,false,PreviousAxis:apheAxis);
         try
         {
             var context=Impact;
@@ -45,6 +53,7 @@ internal static class RuntimeSpall
                 // The same native loop evaluates both the original projectile and its fragments.
                 o.volume*=(float)s.ApheSpallMultiplier;
                 o.crossectionalArea*=(float)s.ApheSpallMultiplier;
+                apheAxis=o.planeNormal.sqrMagnitude>.5f?o.planeNormal.normalized:o.direction.normalized;
                 __state=__state with {Custom=true,Aphe=true,
                     ExplosionPosition=context.LiveImpact?simulation.SimToWorldSpacePoint(o.spawnPoint):default};
             }
@@ -67,6 +76,19 @@ internal static class RuntimeSpall
             }
         }
         catch(Exception ex){Plugin.ModLog.LogError("[Spall] Burst tuning failed: "+ex);}
+    }
+    [HarmonyFinalizer,HarmonyPatch(typeof(CompoundStructure),nameof(CompoundStructure.CreateSpallBurst))]
+    private static void EndBurst(BurstState __state) => apheAxis=__state.PreviousAxis;
+    [HarmonyPrefix,HarmonyPatch(typeof(CompoundStructure),nameof(CompoundStructure.GetFragmentDirection))]
+    private static bool ConeDirection(ref UnityEngine.Vector3 __result)
+    {
+        if(apheAxis is not {} axis)return true;
+        var helper=Math.Abs(axis.y)<.9f?UnityEngine.Vector3.up:UnityEngine.Vector3.right;
+        var tangent=UnityEngine.Vector3.Cross(helper,axis).normalized;
+        var bitangent=UnityEngine.Vector3.Cross(axis,tangent);
+        var sample=SpallBalance.Cone(System.Random.Shared.NextDouble(),System.Random.Shared.NextDouble(),Settings.ApheConeHalfAngleDegrees);
+        __result=axis*sample.Z+tangent*sample.X+bitangent*sample.Y;
+        return false;
     }
     [HarmonyPostfix,HarmonyPatch(typeof(CompoundStructure),nameof(CompoundStructure.CreateSpallBurst))]
     private static void BurstDone(PenetrationSimulation simulation,BurstState __state)

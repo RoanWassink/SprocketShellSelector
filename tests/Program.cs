@@ -210,3 +210,19 @@ if(File.Exists(legacyBurstConfig)){
  Check(legacyBurst.ApheSpallMultiplier==4 && legacyBurst.ApheExplosionEffect,"previous fuse config imports new native AP defaults without reset");
 }
 Console.WriteLine($"v0.6.0 PASS: {checks} checks.");
+foreach(var halfAngle in new[]{30d,60d,90d}){
+ var bounded=true;var normalized=true;
+ for(var i=0;i<2048;i++){
+  var point=SpallBalance.Cone((i*.6180339887498949)%1,(i+.5)/2048,halfAngle);
+  bounded &= point.Z>=Math.Cos(halfAngle*Math.PI/180)-1e-6 && point.Z<=1;
+  normalized &= Math.Abs(point.X*point.X+point.Y*point.Y+point.Z*point.Z-1)<1e-6;
+ }
+ Check(bounded,"cone stays within requested forward half-angle");
+ Check(normalized,"cone directions remain unit length");
+}
+Check(Math.Abs(SpallBalance.Cone(0,1,90).Z)<1e-6,"180 degree full cone reaches hemisphere boundary without backwards fragments");
+foreach(var bad in new[]{new SpallSettings() with{ApheConeHalfAngleDegrees=91},new SpallSettings() with{ApheExplosionScale=0}}){
+ var rejected=false;try{SpallBalance.Validate(bad);}catch(FormatException){rejected=true;}
+ Check(rejected,"invalid experimental cone or effect scale rejected");
+}
+Console.WriteLine($"v0.7.0 EXPERIMENT PASS: {checks} checks.");

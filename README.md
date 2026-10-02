@@ -1,6 +1,6 @@
-# Sprocket Shell Selector
+# Sprocket Shell Selector — experimental v0.7.0
 
-**Release candidate 1: v0.6.0.** Accepted APHE simulator spall and live impact effects. The experimental v0.7.0 work is separate from this candidate.
+Accepted release candidate 1 is v0.6.0 on main. This branch is an unverified cone/visual/normalization experiment. See [EXPERIMENT.md](EXPERIMENT.md).
 
 
 Experimental shell profiles for Sprocket: APFSDS and APHE, selectable in the cannon inspector and armour penetration simulator. Vibe coded with AI assistance.
@@ -19,7 +19,7 @@ Keep a backup of your previous DLL and configuration before installing an experi
 
 **APFSDS** uses a subcalibre penetrator calculated from the full gun calibre, rod length, density and ballistic constants. Spall increases as remaining native penetration decreases. The cone widens by up to 15% relative to its configured base width as remaining kinetic energy increases.
 
-**APHE** uses reduced-penetration AP ballistics and the native AP spall simulation. By default it multiplies spall volume and fragment-count input by four. Fragment count remains subject to the native 32-fragment cap per burst. Direction, origin, speed, material handling and projectile continuation remain native AP. A visual-only native explosion effect is requested on live impacts that produce spall; it does not add blast damage. The armour simulator uses its normal trajectory visualization.
+**APHE** uses reduced-penetration AP ballistics and the native AP spall simulation. By default it multiplies spall volume and fragment-count input by four. Fragment count remains subject to the native 32-fragment cap per burst. Fragment directions are sampled within a 180-degree forward cone about the inward plate normal. Origin, speed, material handling and projectile continuation remain native AP. A visual-only native explosion effect is requested on live impacts that produce spall; it does not add blast damage. The armour simulator uses its normal trajectory visualization.
 
 These are configurable gameplay approximations. The enhanced APHE behaviour and explosion visual need in-game testing. Shell selection applies to cannons sharing a blueprint and overrides loaded AP/APHE rounds; ammunition storage, loading and costs remain vanilla.
 
@@ -45,4 +45,5 @@ Install .NET SDK 8. Build with `dotnet build SprocketShellSelector.csproj -c Rel
 ## Rollback
 
 Close the game and restore the previous shell DLL and its configuration from your backup.
+
 
