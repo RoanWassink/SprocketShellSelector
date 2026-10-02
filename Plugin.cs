@@ -5,7 +5,7 @@ using HarmonyLib;
 using Il2CppInterop.Runtime;
 using UnityEngine.Events;
 namespace SprocketShellSelector;
-[BepInPlugin("nl.roan.sprocket.shellselector", "Sprocket Shell Selector", "0.1.0")]
+[BepInPlugin("nl.roan.sprocket.shellselector", "Sprocket Shell Selector", "0.5.0")]
 [BepInDependency("nl.roan.sprocket.materialselector", BepInDependency.DependencyFlags.SoftDependency)]
 public sealed class Plugin : BasePlugin
 {
@@ -19,13 +19,28 @@ public sealed class Plugin : BasePlugin
             if (Harmony.HasAnyPatches("nl.roan.sprocket.materialselector.apfsdsbeta"))
                 throw new InvalidOperationException("Combined Material Selector shell hooks detected. Close the game and restore Material Selector stable v0.4.0 before using this plugin.");
             RuntimeShellSelection.Configure(Config);
+            RuntimeSpall.Configure();
             harmony.PatchAll(typeof(RuntimeShellSelection));
-            Log.LogInfo("Sprocket Shell Selector v0.1.0 loaded; shell behavior inherited from combined v0.5.1.");
+            harmony.PatchAll(typeof(RuntimeSpall));
         }
         catch (Exception ex)
         {
             harmony.UnpatchSelf();
             Log.LogError($"Shell selector disabled: {ex}");
+            return;
+        }
+        Log.LogInfo("Sprocket Shell Selector v0.5.0 loaded; shell and spall/APHE patches loaded.");
+        var simulatorHarmony = new Harmony("nl.roan.sprocket.shellselector.simulator");
+        try
+        {
+            RuntimeArmourSimulator.Configure();
+            simulatorHarmony.PatchAll(typeof(RuntimeArmourSimulator));
+            Log.LogInfo("[Armour Simulator] Patches loaded.");
+        }
+        catch (Exception ex)
+        {
+            simulatorHarmony.UnpatchSelf();
+            Log.LogError($"[Armour Simulator] Disabled; shell and spall/APHE patches remain active: {ex}");
         }
     }
 }
@@ -34,3 +49,5 @@ internal static class Ui
     internal static UnityAction<int> IntCallback(Action<int> action) => DelegateSupport.ConvertDelegate<UnityAction<int>>(action)!;
     internal static Il2CppSystem.Action<bool> BoolCallback(Action<bool> action) => DelegateSupport.ConvertDelegate<Il2CppSystem.Action<bool>>(action)!;
 }
+
+

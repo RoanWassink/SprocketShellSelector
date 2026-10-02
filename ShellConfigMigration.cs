@@ -3,6 +3,15 @@ namespace SprocketShellSelector;
 // Read legacy files only. The destination's existence is the one-time migration marker.
 internal static class ShellConfigMigration
 {
+    internal static string EnsureCurrentProfileFile(string configDirectory,DartSettings fallback)
+    {
+        var destination=Path.Combine(configDirectory,"sprocket.shellselector.shells.json");
+        var previous=new[]{"nl.roan.sprocket.shellselector.shells.json","sprocket.materialselector.shells.json","nl.roan.sprocket.materialselector.shells.json"}
+            .Select(name=>Path.Combine(configDirectory,name)).FirstOrDefault(File.Exists);
+        EnsureProfileFile(destination,previous??Path.Combine(configDirectory,"sprocket.materialselector.shells.json"),
+            Path.Combine(configDirectory,"nl.roan.sprocket.materialselector.cfg"),fallback);
+        return destination;
+    }
     internal static void EnsureProfileFile(string destination, string legacyJson, string legacyCfg, DartSettings fallback)
     {
         if (File.Exists(destination)) return;

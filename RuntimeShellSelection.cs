@@ -22,9 +22,10 @@ internal static class RuntimeShellSelection
     private static readonly Dictionary<IntPtr, Selection> Selections = new();
     private static readonly Dictionary<(IntPtr, string, float, float, float, ushort, float), RegisteredDart> Types = new();
     private static readonly Dictionary<string, float> DamageFactors = new();
+    private static readonly Dictionary<string, (string Id, float GunDiameter)> ImpactProfiles = new();
     [ThreadStatic] private static float impactDamageFactor;
     [ThreadStatic] private static int scaledDamageCalls;
-    private readonly record struct ImpactState(float PreviousFactor, int PreviousCalls, bool IsDart);
+    private readonly record struct ImpactState(float PreviousFactor, int PreviousCalls, bool IsDart, ShellImpactContext? PreviousContext);
     private static ConfigEntry<float> diameter = null!, length = null!, density = null!, efficiency = null!,
         maxFactor = null!, maxSpeed = null!, quality = null!, damage = null!;
     private static ConfigEntry<bool> enabled = null!, open = null!, diagnostics = null!;
@@ -45,14 +46,11 @@ internal static class RuntimeShellSelection
         efficiency = Setting("Velocity efficiency", .85f, .1f, 2f, "Velocity factor = efficiency * sqrt(vanilla AP mass / dart mass), with caps.");
         maxFactor = Setting("Maximum velocity factor", 2.2f, 1f, 4f, "Maximum multiplier of vanilla muzzle velocity.");
         maxSpeed = Setting("Maximum velocity", 2200f, 100f, 5000f, "Absolute muzzle velocity cap, m/s.");
-        quality = Setting("Penetration quality", .75f, .1f, 4f, "AP penetration quality multiplier at equal mass, diameter and speed.");
+        quality = Setting("Penetration quality", .45f, .1f, 4f, "AP penetration quality multiplier at equal mass, diameter and speed.");
         damage = Setting("Post penetration damage", .5f, .01f, 1f, "Scale native fragment health damage during APFSDS impacts; does not alter penetration energy.");
         // Read old values once when creating the profile file. From then on JSON
         // is authoritative; existing customized v0.5.0 settings survive migration.
-        var path = Path.Combine(Paths.ConfigPath, "nl.roan.sprocket.shellselector.shells.json");
-        ShellConfigMigration.EnsureProfileFile(path,
-            Path.Combine(Paths.ConfigPath, "nl.roan.sprocket.materialselector.shells.json"),
-            Path.Combine(Paths.ConfigPath, "nl.roan.sprocket.materialselector.cfg"),
+        var path = ShellConfigMigration.EnsureCurrentProfileFile(Paths.ConfigPath,
             new(diameter.Value, length.Value, density.Value, efficiency.Value, maxFactor.Value,
                 maxSpeed.Value, quality.Value, damage.Value));
         profiles = ShellProfiles.Parse(File.ReadAllText(path));
@@ -62,6 +60,8 @@ internal static class RuntimeShellSelection
         Plugin.ModLog.LogInfo($"[Shell Profiles] Loaded {profiles.Count} profile(s) from {path}. Restart after editing. Legacy numeric CFG values are only used on first migration.");
     }
 
+    internal static IReadOnlyList<ShellProfile> Profiles => profiles;
+    internal static bool Enabled => enabled.Value;
     private static ShellProfile? Profile(CannonBlueprint blueprint) => enabled.Value &&
         Selections.TryGetValue(blueprint.Pointer, out var selection)
         ? profiles.FirstOrDefault(p => p.Id == selection.ProfileId) : null;
@@ -114,7 +114,10 @@ internal static class RuntimeShellSelection
                     ui.InfoField($"{blueprint.Caliber} mm cannon | {dart.Diameter * 1000:0.0} mm penetrator", 2);
                     ui.InfoField($"{dart.Length * 1000:0} mm long | {dart.Mass:0.00} kg", 2);
                     ui.InfoField($"{dart.Velocity:0} m/s | {pen:0} mm base RHA penetration", 2);
-                    ui.InfoField($"Fragment damage: {dart.DamageMultiplier:P0} | no explosive filler", 2);
+                    ui.InfoField(Profile(blueprint)!.Id == "aphe"
+                        ? "APHE: reduced penetration | armour-triggered fuse and delayed internal burst"
+                        : Profile(blueprint)!.Id == "apfsds" ? "APFSDS: narrow cone | spall increases as remaining penetration falls"
+                        : $"Fragment damage: {dart.DamageMultiplier:P0} | no explosive filler", 2);
                 }
             }
             finally { layout.EndAllDropdowns(); }
@@ -175,7 +178,8 @@ internal static class RuntimeShellSelection
                 if (diagnostics.Value) Plugin.ModLog.LogInfo($"[APFSDS Beta] Registered {guid}: " +
                     $"diameter={dart.Diameter * 1000:0.0}mm length={dart.Length * 1000:0}mm mass={dart.Mass:0.000}kg K={dart.PenetratorConstant}");
             }
-            DamageFactors[registered.Type.Guid.ToString()] = dart.DamageMultiplier;
+            DamageFactors[registered.Type.Guid.ToString()] = profile.Id is "apfsds" or "aphe" ? 1f : dart.DamageMultiplier;
+            ImpactProfiles[registered.Type.Guid.ToString()] = (profile.Id, cannon.Blueprint.Caliber * .001f);
             var direction = launchState.Direction;
             if (direction.sqrMagnitude < .00001f) throw new InvalidOperationException("Invalid launch direction.");
             // Native CalculateDispersion returns mm spread at a distance in metres.
@@ -217,7 +221,8 @@ internal static class RuntimeShellSelection
     [HarmonyPrefix, HarmonyPatch(typeof(ArmourPiercingProjectileFunction), nameof(ArmourPiercingProjectileFunction.HitDamageModel))]
     private static void Impact(ref ProjectileInstance projectile, out ImpactState __state)
     {
-        __state = new(impactDamageFactor, scaledDamageCalls, false);
+        __state = new(impactDamageFactor, scaledDamageCalls, false, RuntimeSpall.Impact);
+        RuntimeSpall.Impact = null;
         impactDamageFactor = 1f;
         scaledDamageCalls = 0;
         try
@@ -225,6 +230,8 @@ internal static class RuntimeShellSelection
             if (DamageFactors.TryGetValue(projectile.Definition.Guid.ToString(), out var factor))
             {
                 impactDamageFactor = factor;
+                if (ImpactProfiles.TryGetValue(projectile.Definition.Guid.ToString(), out var impactProfile))
+                    RuntimeSpall.Impact = new() { ProfileId = impactProfile.Id, GunDiameter = impactProfile.GunDiameter };
                 __state = __state with { IsDart = true };
                 if (diagnostics.Value) Plugin.ModLog.LogInfo($"[APFSDS Beta] IMPACT projectile={projectile.ID} speed={projectile.velocity.magnitude:0.0}m/s damageFactor={factor:0.00}");
             }
@@ -239,6 +246,7 @@ internal static class RuntimeShellSelection
             Plugin.ModLog.LogInfo($"[APFSDS Beta] IMPACT completed; scaled fragment damage calls={scaledDamageCalls}");
         impactDamageFactor = __state.PreviousFactor;
         scaledDamageCalls = __state.PreviousCalls;
+        RuntimeSpall.Impact = __state.PreviousContext;
     }
 
     // ApplyFragmentHits calls this overload directly; Fragment.Damage is inlined.
@@ -305,6 +313,9 @@ internal static class RuntimeShellSelection
             Selections[copy.Pointer] = new(copy, selection.ProfileId);
     }
 }
+
+
+
 
 
 

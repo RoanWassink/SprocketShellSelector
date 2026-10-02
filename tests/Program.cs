@@ -104,4 +104,106 @@ try
 }
 finally { Directory.Delete(temp, true); }
 Console.WriteLine($"PASS total: {checks} shell checks including migration.");
+var spallSettings = new SpallSettings();
+SpallBalance.Validate(spallSettings);
+Check(SpallBalance.Parse(SpallBalance.ToJson(spallSettings)) == spallSettings, "complete spall JSON round trip");
+Check(SpallBalance.ThicknessRatio(.15, spallSettings) == .08, "thin anchor 8 percent AP volume");
+Check(SpallBalance.ThicknessRatio(.75, spallSettings) == 1, "middle anchor same AP volume");
+Check(SpallBalance.ThicknessRatio(1.5, spallSettings) == 1.25, "thick anchor 125 percent AP volume");
+Check(SpallBalance.ThicknessRatio(10, spallSettings) == 1.25, "bounded thick response");
+Check(SpallBalance.ReferenceApVolume(.13,.13) == SpallBalance.ReferenceApVolume(.13,.26), "native AP spall fraction saturates");
+Check(SpallBalance.ReferenceApVolume(.13,.004) == 0, "native AP below four percent calibre produces no spall");
+Check(SpallBalance.ReferenceApVolume(.13,.1) * SpallBalance.ThicknessRatio(.1/.13,spallSettings) > SpallBalance.ReferenceApVolume(.13,.02) * SpallBalance.ThicknessRatio(.02/.13,spallSettings), "thin mass lower than thick mass");
+var previousRatio=0d;
+var monotonic=true;
+for(var i=0;i<=1000;i++) { var ratio=SpallBalance.ThicknessRatio(i*.003,spallSettings); monotonic &= ratio>=previousRatio; previousRatio=ratio; }
+Check(monotonic,"continuous thickness curve monotonic over full sweep");
+foreach(var bad in new[] {spallSettings with {ConeMultiplier=0},spallSettings with {ThinCalibres=2},spallSettings with {ApheFragmentCount=257},spallSettings with {ApheFragmentMass=double.NaN},spallSettings with {ApheFragmentK=2000}})
+{
+    var invalid=false; try {SpallBalance.Validate(bad);} catch(FormatException){invalid=true;}
+    Check(invalid,"invalid experimental spall setting rejected");
+}
+var unknown=false; try {SpallBalance.Parse(SpallBalance.ToJson(spallSettings).Replace("coneMultiplier","coneTypo"));} catch(FormatException){unknown=true;}
+Check(unknown,"unknown spall field rejected");
+var apheSettings=new DartSettings(.9,2,7800,.1,1,2200,.65,1);
+var aphe=ShellBallistics.Calculate(130,861,1800,apheSettings);
+var aphePen=Math.Pow(Math.Sqrt(aphe.Mass)*aphe.Velocity/(aphe.PenetratorConstant*Math.Pow(aphe.Diameter*1000*.01,.75)),1.43);
+var apPen=Math.Pow(Math.Sqrt(1.59e-5*130*130*130)*861/(1800*Math.Pow(130*.01,.75)),1.43);
+Check(aphePen<apPen,"APHE experiment lower native penetration than vanilla AP");
+Check(aphe.Velocity==861,"APHE does not gain dart muzzle speed");
+Console.WriteLine($"PASS total: {checks} shell, migration and spall checks.");
+var sumX=0d;var sumY=0d;var sumZ=0d;var unitSphere=true;
+for(var i=0;i<2048;i++) {
+    var v=SpallBalance.Sphere((i*.6180339887498949)%1,(i+.5)/2048);
+    unitSphere &= Math.Abs(v.X*v.X+v.Y*v.Y+v.Z*v.Z-1)<1e-6;
+    sumX+=v.X;sumY+=v.Y;sumZ+=v.Z;
+}
+Check(unitSphere,"spherical fragments keep normalized directions");
+Check(Math.Abs(sumX/2048)<.001 && Math.Abs(sumY/2048)<.001 && Math.Abs(sumZ/2048)<.001,"spherical distribution has no preferred hemisphere");
+Check(SpallBalance.Sphere(0,0).Z==-1 && SpallBalance.Sphere(0,1).Z==1,"sphere includes forward and backward directions");
+var packageConfig=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"../../../../outputs/v0.2.0/config"));
+if(Directory.Exists(packageConfig)) {
+    var packageProfiles=ShellProfiles.Parse(File.ReadAllText(Path.Combine(packageConfig,"nl.roan.sprocket.shellselector.shells.json")));
+    Check(packageProfiles.Any(p=>p.Id=="apfsds") && packageProfiles.Any(p=>p.Id=="aphe"),"test package includes both experiments");
+    _=SpallBalance.Parse(File.ReadAllText(Path.Combine(packageConfig,"nl.roan.sprocket.shellselector.spall.json")));
+    Check(true,"test package spall JSON validates");
+}
+Console.WriteLine($"FINAL PASS: {checks} checks.");
 
+var oldQuality=ShellBallistics.Calculate(125,890,1800,new DartSettings() with {PenetrationQuality=.75});
+var newQuality=ShellBallistics.Calculate(125,890,1800,new DartSettings());
+Check(newQuality with {PenetratorConstant=oldQuality.PenetratorConstant} == oldQuality,"quality adjustment changes only K, not geometry/mass/speed");
+var relativePen=Math.Pow((double)oldQuality.PenetratorConstant/newQuality.PenetratorConstant,1.43);
+Check(Math.Abs(relativePen-.6)<.001,"quality constant reduces native penetration to sixty percent across calibres");
+var calibreInvariant=true;
+foreach(var calibre in new[]{20d,75d,125d,200d}) {
+ var oldK=ShellBallistics.Calculate(calibre,900,1800,new DartSettings() with{PenetrationQuality=.75}).PenetratorConstant;
+ var newK=ShellBallistics.Calculate(calibre,900,1800,new DartSettings()).PenetratorConstant;
+ calibreInvariant &= oldK==oldQuality.PenetratorConstant && newK==newQuality.PenetratorConstant;
+}
+Check(calibreInvariant,"balance constant has no special case for 125mm");
+Console.WriteLine($"v0.3.0 PASS: {checks} checks.");
+Check(SpallBalance.RemainingPenetrationRatio(1,spallSettings)==spallSettings.ThinRatio,"full remaining penetration produces minimum spall");
+Check(SpallBalance.RemainingPenetrationRatio(0,spallSettings)==spallSettings.ThickRatio,"exhausted penetration produces maximum spall ratio");
+Check(SpallBalance.RemainingPenetrationRatio(2,spallSettings)==spallSettings.ThinRatio,"remaining fraction above one is bounded");
+Check(Math.Abs(SpallBalance.RemainingPenetrationRatio(.5,spallSettings)-.665)<1e-12,"half remaining penetration gives broad linear response");
+var priorRemainingRatio=double.PositiveInfinity;
+var remainingMonotonic=true;
+for(var i=0;i<=1000;i++) {
+ var ratio=SpallBalance.RemainingPenetrationRatio(i*.001,spallSettings);
+ remainingMonotonic &= ratio<=priorRemainingRatio && ratio>=spallSettings.ThinRatio && ratio<=spallSettings.ThickRatio;
+ priorRemainingRatio=ratio;
+}
+Check(remainingMonotonic,"spall decreases monotonically with remaining penetration across full sweep");
+Check(SpallBalance.RemainingPenetrationRatio(.4,spallSettings with{ThinCalibres=.1,MiddleCalibres=1,ThickCalibres=2})==SpallBalance.RemainingPenetrationRatio(.4,spallSettings),"remaining model independent of legacy plate thickness anchors");
+foreach(var invalidRemaining in new[]{double.NaN,double.PositiveInfinity,-.1}) {
+ var rejected=false;try{SpallBalance.RemainingPenetrationRatio(invalidRemaining,spallSettings);}catch(ArgumentOutOfRangeException){rejected=true;}
+ Check(rejected,"invalid remaining penetration rejected");
+}
+var oldSpallJson=SpallBalance.ToJson(spallSettings).Replace(",\n  \"remainingPenetrationExponent\": 1","");
+Check(SpallBalance.Parse(oldSpallJson).RemainingPenetrationExponent==1,"existing spall configuration defaults to linear remaining penetration model");
+Console.WriteLine($"v0.4.0 PASS: {checks} checks.");
+var fuse=new ApheFuse();
+Check(!fuse.Traverse((IntPtr)1,1,10,spallSettings),"thin first plate does not arm APHE");
+Check(!fuse.Traverse((IntPtr)1,1,10,spallSettings) && fuse.AccumulatedRhaMm==10,"repeated burst for same segment cannot arm fuse twice");
+Check(!fuse.Traverse((IntPtr)1,2,10,spallSettings),"two thin plates below RHA threshold retain AP continuation");
+Check(fuse.Traverse((IntPtr)1,3,5,spallSettings),"thin plates cumulatively arm fuse at threshold");
+Check(new ApheFuse().Traverse((IntPtr)2,1,30,spallSettings),"single sufficiently thick traversed plate arms APHE");
+Check(!new ApheFuse().Traverse((IntPtr)2,1,5,spallSettings),"new shell does not inherit another shell fuse state");
+Check(SpallBalance.ConeFactor(0,spallSettings)==.3,"exhausted kinetic energy retains base cone");
+Check(Math.Abs(SpallBalance.ConeFactor(.5,spallSettings)-.3225)<1e-12,"half kinetic energy widens cone by seven point five percent");
+Check(Math.Abs(SpallBalance.ConeFactor(1,spallSettings)-.345)<1e-12,"full kinetic energy widens cone by fifteen percent");
+Check(SpallBalance.ConeFactor(2,spallSettings)==SpallBalance.ConeFactor(1,spallSettings),"cone widening capped at fifteen percent");
+var configTemp=Path.Combine(Path.GetTempPath(),"shell-names-"+Guid.NewGuid());
+Directory.CreateDirectory(configTemp);
+try {
+ var previousFile=Path.Combine(configTemp,"nl.roan.sprocket.shellselector.shells.json");
+ File.WriteAllText(previousFile,profileJson);
+ var currentFile=ShellConfigMigration.EnsureCurrentProfileFile(configTemp,defaults);
+ Check(Path.GetFileName(currentFile)=="sprocket.shellselector.shells.json","current profile filename contains no author name");
+ Check(File.ReadAllText(currentFile)==profileJson && File.ReadAllText(previousFile)==profileJson,"renaming preserves existing settings and source backup");
+ File.WriteAllText(previousFile,secondJson);
+ ShellConfigMigration.EnsureCurrentProfileFile(configTemp,defaults);
+ Check(File.ReadAllText(currentFile)==profileJson,"new filename remains authoritative after migration");
+} finally {Directory.Delete(configTemp,true);}
+Console.WriteLine($"v0.5.0 PASS: {checks} checks.");

@@ -3,10 +3,10 @@ namespace SprocketShellSelector;
 // Gameplay defaults; this is a subcalibre AP approximation, not a long-rod model.
 internal readonly record struct DartSettings(double DiameterRatio = .22, double LengthInCalibres = 5,
     double Density = 17500, double VelocityEfficiency = .85, double MaxVelocityFactor = 2.2,
-    double MaxVelocity = 2200, double PenetrationQuality = .75, double DamageMultiplier = .5,
+    double MaxVelocity = 2200, double PenetrationQuality = .45, double DamageMultiplier = .5,
     double VelocityMultiplier = 1)
 {
-    public DartSettings() : this(.22, 5, 17500, .85, 2.2, 2200, .75, .5) { }
+    public DartSettings() : this(.22, 5, 17500, .85, 2.2, 2200, .45, .5) { }
 }
 
 internal readonly record struct DartBallistics(float Diameter, float Length, float Mass,
@@ -46,4 +46,5 @@ internal static class ShellBallistics
             (float)settings.DamageMultiplier);
     }
 }
+
 
