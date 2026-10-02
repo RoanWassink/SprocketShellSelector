@@ -5,7 +5,7 @@ using HarmonyLib;
 using Il2CppInterop.Runtime;
 using UnityEngine.Events;
 namespace SprocketShellSelector;
-[BepInPlugin("nl.roan.sprocket.shellselector", "Sprocket Shell Selector", "0.6.0")]
+[BepInPlugin("nl.roan.sprocket.shellselector", "Sprocket Shell Selector", "0.8.1")]
 [BepInDependency("nl.roan.sprocket.materialselector", BepInDependency.DependencyFlags.SoftDependency)]
 public sealed class Plugin : BasePlugin
 {
@@ -29,7 +29,7 @@ public sealed class Plugin : BasePlugin
             Log.LogError($"Shell selector disabled: {ex}");
             return;
         }
-        Log.LogInfo("Sprocket Shell Selector v0.6.0 loaded; shell and spall/APHE patches loaded.");
+        Log.LogInfo("Sprocket Shell Selector v0.8.1 EXPERIMENT loaded; shell and spall/APHE patches loaded.");
         var simulatorHarmony = new Harmony("nl.roan.sprocket.shellselector.simulator");
         try
         {
@@ -60,5 +60,3 @@ internal static class Ui
     internal static UnityAction<int> IntCallback(Action<int> action) => DelegateSupport.ConvertDelegate<UnityAction<int>>(action)!;
     internal static Il2CppSystem.Action<bool> BoolCallback(Action<bool> action) => DelegateSupport.ConvertDelegate<Il2CppSystem.Action<bool>>(action)!;
 }
-
-

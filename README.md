@@ -1,48 +1,93 @@
 # Sprocket Shell Selector
 
-**Release candidate 1: v0.6.0.** Accepted APHE simulator spall and live impact effects. The experimental v0.7.0 work is separate from this candidate.
+A vibe-coded BepInEx IL2CPP plugin that adds **APFSDS and APHE shell profiles** to Sprocket's cannon inspector and armour penetration simulator.
 
+**Built with AI assistance.** Version **0.8.1** has been tested in-game, with 137 managed regression checks passing.
 
-Experimental shell profiles for Sprocket: APFSDS and APHE, selectable in the cannon inspector and armour penetration simulator. Vibe coded with AI assistance.
+## Requirements
+
+- Sprocket **0.2.55.5** (Unity **6000.3.21f1**).
+- A working **Sprocket Mod Loader / BepInEx 6 IL2CPP** setup with its .NET 6 runtime—the same environment used by Hans21223's *Sprocket Quality of Life*.
+- Quality of Life and Material Selector are optional.
 
 ## Installation
 
-Requires Sprocket 0.2.55.5 and a working Sprocket Mod Loader / BepInEx 6 IL2CPP installation with its .NET 6 runtime. Start the loader once to generate interop assemblies.
+1. Run the game once with the mod loader installed, then close it.
+2. Download **SprocketShellSelector.dll** from this repository's [Releases](https://github.com/RoanWassink/SprocketShellSelector/releases) section.
+3. Drop the DLL into:
 
-1. Close Sprocket.
-2. Copy `SprocketShellSelector.dll` into `BepInEx/plugins`.
-3. Start the game and select a shell profile in the cannon inspector or armour simulator.
+   ```text
+   Sprocket\BepInEx\plugins\
+   ```
 
-Keep a backup of your previous DLL and configuration before installing an experimental update. Avoid installing multiple plugins that override the same shell behaviour.
+4. Launch the game and choose a shell profile in the cannon inspector or armour simulator.
 
-## Shell behaviour
+No compiling needed. Back up your vehicle saves and existing configuration before updating. Install only one copy of the shell plugin.
 
-**APFSDS** uses a subcalibre penetrator calculated from the full gun calibre, rod length, density and ballistic constants. Spall increases as remaining native penetration decreases. The cone widens by up to 15% relative to its configured base width as remaining kinetic energy increases.
+## Shell profiles
 
-**APHE** uses reduced-penetration AP ballistics and the native AP spall simulation. By default it multiplies spall volume and fragment-count input by four. Fragment count remains subject to the native 32-fragment cap per burst. Direction, origin, speed, material handling and projectile continuation remain native AP. A visual-only native explosion effect is requested on live impacts that produce spall; it does not add blast damage. The armour simulator uses its normal trajectory visualization.
+**APFSDS** calculates a subcalibre rod from the full gun calibre, rod length, density and ballistic constants. Extra penetration comes with a narrower spall cone. Spall increases as remaining penetration decreases, so a shot with abundant penetration left produces less spall. Cone width can increase by up to 15% with remaining kinetic energy. Classical AP normalization can be disabled for APFSDS; projectile trajectory and ricochet handling otherwise remain native.
 
-These are configurable gameplay approximations. The enhanced APHE behaviour and explosion visual need in-game testing. Shell selection applies to cannons sharing a blueprint and overrides loaded AP/APHE rounds; ammunition storage, loading and costs remain vanilla.
+**APHE** combines reduced-penetration AP ballistics with much stronger native spall. The default is a **180-degree forward cone**, with four times the spall volume and fragment-count input. The native limit of 32 fragments per burst still applies. Successful live impacts that produce spall request a configurable native explosion visual. Damage comes from spall; the visual adds no blast damage and does not use the native HE tooltip's kg value.
+
+These are gameplay approximations. Shell selection applies to cannons sharing a blueprint and overrides loaded AP/APHE rounds. Ammunition storage, loading and costs remain vanilla.
 
 ## Armour simulator
 
-Choose a shell profile in the simulator. Calibre remains the full gun calibre, including for APFSDS. The penetration slider extends to 2000 mm and represents manually selected penetration, rather than a prediction of cannon performance. The detailed simulation uses the selected profile's geometry and mass; the native colour overlay has a less detailed calibre approximation.
+Choose a profile under **Simulator shell profile**. Calibre always means the full gun calibre, including for APFSDS. The penetration slider extends to **2000 mm** and represents the penetration you select manually, rather than a prediction of your cannon's performance.
+
+The detailed simulation uses the selected profile's geometry and mass. The native colour overlay uses a simpler calibre approximation. Live explosion effects are not shown in the simulator.
 
 ## Configuration
 
-Edit these files under `BepInEx/config` with the game closed:
+The plugin creates these files in `Sprocket\BepInEx\config`. Edit them with the game closed, then restart:
 
 - `sprocket.shellselector.shells.json`: shell geometry, density, velocity and penetration constants.
-- `sprocket.shellselector.spall.json`: spall balance and APHE amplification settings.
+- `sprocket.shellselector.spall.json`: spall balance, cone width and APHE explosion visuals.
 
-Existing configuration is imported automatically when the new filenames are first created. Previous files are preserved; the new files then become authoritative. Custom burst settings are preserved.
+| Setting | Default | Effect |
+|---|---|---|
+| `apheSpallMultiplier` | 4 | Multiplies native APHE spall volume/count inputs |
+| `apheConeHalfAngleDegrees` | 90 | Half-angle; 90 produces a 180-degree forward cone |
+| `apheExplosionEffect` | true | Enables the live explosion visual |
+| `apheExplosionScale` | 0.65 | Scales native explosion asset size limits |
+| `coneMultiplier` | 0.3 | Base APFSDS spall spread multiplier |
+| `coneEnergyWidening` | 0.15 | Maximum relative cone widening with remaining energy |
+| `thinRatio` | 0.08 | APFSDS spall ratio with abundant penetration remaining |
+| `thickRatio` | 1.25 | APFSDS spall ratio as penetration is exhausted |
+| `remainingPenetrationExponent` | 1 | Shapes the transition between those ratios |
+| `apfsdsDisableClassicNormalization` | true | Disables classical AP normalization for APFSDS |
 
-APHE settings: `apheSpallMultiplier` (1–12, default 4) and `apheExplosionEffect` (default true). APFSDS settings: `coneMultiplier`, `coneEnergyWidening`, `thinRatio`, `thickRatio`, and `remainingPenetrationExponent`. Older fuse, spherical burst and thickness settings are accepted for configuration compatibility but do not control current behaviour.
+Existing shell configuration is imported when the current filenames are first created. Older fuse, spherical-burst, thickness-anchor and experimental deflection keys remain accepted for compatibility but do not control current behaviour.
 
-## Build and testing
+## Troubleshooting
 
-Install .NET SDK 8. Build with `dotnet build SprocketShellSelector.csproj -c Release -p:GameDir="YOUR_GAME_PATH"`. Run managed checks with `dotnet run --project tests/ShellSelector.Tests.csproj -c Release`. Game and interop DLLs are local references and are not redistributed. Managed checks do not replace gameplay testing.
+Check `Sprocket\BepInEx\LogOutput.log` for messages containing `Sprocket Shell Selector`, `[Armour Simulator]` or `[APHE Effect]`.
 
-## Rollback
+When reporting an issue, include your game/mod-loader version, selected shell profile, what you did and relevant log lines. For simulator issues, include calibre, penetration and a screenshot of the trajectory.
 
-Close the game and restore the previous shell DLL and its configuration from your backup.
+To roll back, close the game and restore your previous shell DLL and configuration backup.
 
+## Building from source
+
+For contributors: install **.NET SDK 8** and start the game once with a working mod loader so `BepInEx\interop` exists.
+
+```powershell
+dotnet build -c Release -p:GameDir="C:\Program Files (x86)\Steam\steamapps\common\Sprocket"
+```
+
+The output is `bin\Release\net6.0\SprocketShellSelector.dll`. Game and loader assemblies are referenced locally and are not included here.
+
+Run the independent regression checks with:
+
+```powershell
+dotnet run --project tests/ShellSelector.Tests.csproj -c Release
+```
+
+## Credits
+
+Created by RoanWassink with AI assistance. The native inspector integration follows the pattern used by Hans21223's *Sprocket Quality of Life*.
+
+## License
+
+[MIT](LICENSE). The license applies to this plugin's code; game and loader assemblies are not distributed with it.

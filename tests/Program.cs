@@ -210,3 +210,32 @@ if(File.Exists(legacyBurstConfig)){
  Check(legacyBurst.ApheSpallMultiplier==4 && legacyBurst.ApheExplosionEffect,"previous fuse config imports new native AP defaults without reset");
 }
 Console.WriteLine($"v0.6.0 PASS: {checks} checks.");
+foreach(var halfAngle in new[]{30d,60d,90d}){
+ var bounded=true;var normalized=true;
+ for(var i=0;i<2048;i++){
+  var point=SpallBalance.Cone((i*.6180339887498949)%1,(i+.5)/2048,halfAngle);
+  bounded &= point.Z>=Math.Cos(halfAngle*Math.PI/180)-1e-6 && point.Z<=1;
+  normalized &= Math.Abs(point.X*point.X+point.Y*point.Y+point.Z*point.Z-1)<1e-6;
+ }
+ Check(bounded,"cone stays within requested forward half-angle");
+ Check(normalized,"cone directions remain unit length");
+}
+Check(Math.Abs(SpallBalance.Cone(0,1,90).Z)<1e-6,"180 degree full cone reaches hemisphere boundary without backwards fragments");
+foreach(var bad in new[]{new SpallSettings() with{ApheConeHalfAngleDegrees=91},new SpallSettings() with{ApheExplosionScale=0}}){
+ var rejected=false;try{SpallBalance.Validate(bad);}catch(FormatException){rejected=true;}
+ Check(rejected,"invalid experimental cone or effect scale rejected");
+}
+Console.WriteLine($"v0.7.0 EXPERIMENT PASS: {checks} checks.");
+var incoming=new System.Numerics.Vector3(1,0,0);
+var slopeNormal=System.Numerics.Vector3.Normalize(new System.Numerics.Vector3(1,1,0));
+var downward=PlateDeflection.Bend(incoming,slopeNormal,8,30);
+Check(downward.Y<0,"sloping plate bends shot downward without gravity hardcoding");
+Check(System.Numerics.Vector3.Dot(downward,slopeNormal)>0,"deflected shot remains directed into plate");
+Check(Math.Abs(downward.Length()-1)<1e-6,"deflection preserves unit direction and thus speed");
+Check(System.Numerics.Vector3.Distance(downward,PlateDeflection.Bend(incoming,-slopeNormal,8,30))<1e-6,"plate-normal orientation does not change deflection");
+Check(PlateDeflection.Bend(incoming,new(1,-1,0),8,30).Y>0,"mirrored slope produces mirrored bend");
+Check(PlateDeflection.Bend(incoming,incoming,8,30)==incoming,"normal incidence stays straight");
+Check(PlateDeflection.Bend(incoming,slopeNormal,0,30)==incoming,"zero maximum angle disables bend");
+var turn=System.Numerics.Quaternion.CreateFromAxisAngle(System.Numerics.Vector3.UnitZ,1);
+Check(System.Numerics.Vector3.Distance(System.Numerics.Vector3.Transform(downward,turn),PlateDeflection.Bend(System.Numerics.Vector3.Transform(incoming,turn),System.Numerics.Vector3.Transform(slopeNormal,turn),8,30))<1e-6,"deflection rotates with plate and incoming shot");
+Console.WriteLine($"v0.8.0 EXPERIMENT PASS: {checks} checks.");

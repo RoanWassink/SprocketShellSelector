@@ -6,7 +6,10 @@ internal sealed record SpallSettings(double ConeMultiplier = .3, double ThinCali
     int ApheFragmentCount = 96, double ApheFragmentMass = 2.4, double ApheFragmentSpeed = 650,
     int ApheFragmentK = 8000, double RemainingPenetrationExponent = 1,
     double ApheFuseRhaMm = 25, double ApheFuseDelayMilliseconds = .5,
-    double ConeEnergyWidening = .15, double ApheSpallMultiplier = 4, bool ApheExplosionEffect = true);
+    double ConeEnergyWidening = .15, double ApheSpallMultiplier = 4, bool ApheExplosionEffect = true,
+    double ApheConeHalfAngleDegrees = 90, double ApheExplosionScale = .65,
+    bool ApfsdsDisableClassicNormalization = true, bool ApfsdsPlateDeflection = false,
+    double ApfsdsDeflectionMaximumDegrees = 8, double ApfsdsDeflectionMinimumObliquityDegrees = 30);
 internal static class SpallBalance
 {
     internal static void Validate(SpallSettings s)
@@ -20,6 +23,8 @@ internal static class SpallBalance
         Range(s.RemainingPenetrationExponent,.25,4);
         Range(s.ApheFuseRhaMm,1,200); Range(s.ApheFuseDelayMilliseconds,0,5); Range(s.ConeEnergyWidening,0,.5);
         Range(s.ApheSpallMultiplier,1,12);
+        Range(s.ApheConeHalfAngleDegrees,1,90);Range(s.ApheExplosionScale,.1,1);
+        Range(s.ApfsdsDeflectionMaximumDegrees,0,15);Range(s.ApfsdsDeflectionMinimumObliquityDegrees,0,80);
     }
     internal static double ConeFactor(double remainingEnergyFraction, SpallSettings s)
     {
@@ -56,6 +61,16 @@ internal static class SpallBalance
         var radius=Math.Sqrt(Math.Max(0,1-z*z));
         return ((float)(radius*Math.Cos(phi)),(float)(radius*Math.Sin(phi)),(float)z);
     }
+    internal static (float X,float Y,float Z) Cone(double azimuthUnit,double polarUnit,double halfAngleDegrees)
+    {
+        if(!double.IsFinite(halfAngleDegrees) || halfAngleDegrees<1 || halfAngleDegrees>90)
+            throw new ArgumentOutOfRangeException(nameof(halfAngleDegrees));
+        if(!double.IsFinite(azimuthUnit) || !double.IsFinite(polarUnit) || azimuthUnit<0 || azimuthUnit>1 || polarUnit<0 || polarUnit>1)
+            throw new ArgumentOutOfRangeException(nameof(polarUnit));
+        var z=1-polarUnit*(1-Math.Cos(halfAngleDegrees*Math.PI/180));
+        var radius=Math.Sqrt(Math.Max(0,1-z*z));var phi=azimuthUnit*Math.PI*2;
+        return ((float)(radius*Math.Cos(phi)),(float)(radius*Math.Sin(phi)),(float)z);
+    }
     internal static string ToJson(SpallSettings s) => JsonSerializer.Serialize(s,new JsonSerializerOptions{PropertyNamingPolicy=JsonNamingPolicy.CamelCase,WriteIndented=true});
     internal static SpallSettings Parse(string json)
     {
@@ -63,7 +78,7 @@ internal static class SpallBalance
         var root=doc.RootElement;
         var expected=new HashSet<string>(StringComparer.Ordinal){"coneMultiplier","thinCalibres","middleCalibres","thickCalibres","thinRatio","middleRatio","thickRatio","curveExponent","apheFragmentCount","apheFragmentMass","apheFragmentSpeed","apheFragmentK"};
         if(root.ValueKind != JsonValueKind.Object) throw new FormatException("Expected spall settings object.");
-        var optional=new HashSet<string>(StringComparer.Ordinal){"remainingPenetrationExponent","apheFuseRhaMm","apheFuseDelayMilliseconds","coneEnergyWidening","apheSpallMultiplier","apheExplosionEffect"};
+        var optional=new HashSet<string>(StringComparer.Ordinal){"remainingPenetrationExponent","apheFuseRhaMm","apheFuseDelayMilliseconds","coneEnergyWidening","apheSpallMultiplier","apheExplosionEffect","apheConeHalfAngleDegrees","apheExplosionScale","apfsdsDisableClassicNormalization","apfsdsPlateDeflection","apfsdsDeflectionMaximumDegrees","apfsdsDeflectionMinimumObliquityDegrees"};
         foreach(var p in root.EnumerateObject()) if(!expected.Remove(p.Name) && !optional.Remove(p.Name)) throw new FormatException("Unknown or duplicate spall setting: "+p.Name);
         if(expected.Count != 0) throw new FormatException("Missing spall settings.");
         var s=JsonSerializer.Deserialize<SpallSettings>(json,new JsonSerializerOptions{PropertyNamingPolicy=JsonNamingPolicy.CamelCase})!;
