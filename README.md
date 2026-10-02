@@ -1,6 +1,6 @@
-# Sprocket Shell Selector — experimental v0.7.0
+# Sprocket Shell Selector — experimental v0.8.0
 
-Accepted release candidate 1 is v0.6.0 on main. This branch is an unverified cone/visual/normalization experiment. See [EXPERIMENT.md](EXPERIMENT.md).
+Accepted release candidate 1 is v0.6.0 on main. This branch is an unverified cone/visual/plate-deflection experiment. See [EXPERIMENT.md](EXPERIMENT.md).
 
 
 Experimental shell profiles for Sprocket: APFSDS and APHE, selectable in the cannon inspector and armour penetration simulator. Vibe coded with AI assistance.
@@ -45,5 +45,3 @@ Install .NET SDK 8. Build with `dotnet build SprocketShellSelector.csproj -c Rel
 ## Rollback
 
 Close the game and restore the previous shell DLL and its configuration from your backup.
-
-

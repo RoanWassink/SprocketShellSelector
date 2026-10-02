@@ -1,13 +1,24 @@
-# v0.7.0 experimental build
+# v0.8.0 experiment
 
-Accepted release candidate 1 is unchanged v0.6.0, still installed. This experimental DLL has not been installed or tested in-game. Build and 129 managed checks pass.
+RC1 (v0.6.0) remains preserved. This build is prepared, not installed: Sprocket was running. Build and 137 managed checks pass. Native hooks and visible effect size require gameplay validation.
 
-APHE: 90-degree half-angle produces a 180-degree full forward cone, sampled uniformly about the native inward plate normal. Native origin, material filter, speed, fragment count/mass and evaluation remain intact. No sphere or fragment-array direction rewriting. apheConeHalfAngleDegrees permits narrower tests. Native hemisphere rejection and finite fragment count still affect visible results.
+APFSDS: plate-relative bend is applied to the original penetrator inside an entered material segment, using its native entry triangle normal. It bends toward the plate tangent, keeps an inward normal component, and preserves speed and mass. It is bounded and only applied once per simulation/entry surface. No world-downward force, erosion, rod flexure or guaranteed penetration; native ricochet/armour resistance remain. Test both mirrored slopes and normal incidence. Select APFSDS in the simulator.
 
-Explosion: apheExplosionScale=0.65 scales the calibre supplied only to the explosion visual/audio factory. It does not change cannon calibre, spall or damage. Exact displayed size depends on native assets.
+APHE: accepted 180-degree forward cone and 4x native spall inputs retained. Explosion asset minimum/maximum scale bounds are temporarily reduced, then restored even on errors. Calibre scaling alone could be clamped at the asset minimum; this build scales the bounds themselves. Other effects retain their native bounds. Exact visible outcome needs a live shot test.
 
-APFSDS: apfsdsDisableClassicNormalization=true sets maximum classical AP normalization angle to zero for APFSDS in live impacts and detailed simulator shots. Penetration mass/speed/K and native ricochet/obliquity remain unchanged. This is a partial gameplay experiment, not erosion, melting, rod flexure, burying or denormalization. Native colour sampling is not modified for this new setting; compare detailed trajectories.
+Edit BepInEx/config/sprocket.shellselector.spall.json with Sprocket closed and restart:
 
-Install only with Sprocket closed. Back up current shell DLL and neutral JSON configs. Copy this DLL into BepInEx/plugins and merge the three new settings into the current spall JSON, or use the supplied copied configuration. Do not install alongside another shell-selector DLL. Restore RC1 DLL/configs to roll back.
+| Setting | Default | Meaning |
+|---|---|---|
+| apheConeHalfAngleDegrees | 90 | Half-angle; 90 means 180-degree full cone |
+| apheSpallMultiplier | 4 | Spall volume/count input multiplier, native cap still applies |
+| apheExplosionEffect | true | Live explosion visual toggle |
+| apheExplosionScale | 0.65 | Multiply visual asset min/max size bounds |
+| apfsdsPlateDeflection | true | Enable experimental plate-relative bend |
+| apfsdsDeflectionMaximumDegrees | 8 | Maximum extra bend per entry surface, increases with obliquity |
+| apfsdsDeflectionMinimumObliquityDegrees | 30 | Below this angle from plate normal, no extra bend |
+| apfsdsDisableClassicNormalization | true | Disable native classical AP normalization on APFSDS |
 
-Test APHE from front, side and above at angled plates, keeping native paths evaluated; compare RC1. For APFSDS compare classical-normalization flag on/off at identical calibre, velocity/penetration and 0/30/60/75-degree plate obliquity. Expect native ricochet rules to remain. Check preview versus live firing separately.
+Native colour overlay is not a model of this new bend. Compare detailed original-shell trajectories and live firing. An effect log [APHE Effect] Actual asset scale bounds... confirms that the size hook ran. [APFSDS Deflection] logs before/after directions.
+
+Install-Experimental.ps1 checks Sprocket is closed, backs up the installed shell DLL/configs/log, adds missing settings without overwriting custom values and replaces the shell DLL. Restore that backup with the game closed to roll back.

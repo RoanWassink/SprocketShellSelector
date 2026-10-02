@@ -9,6 +9,7 @@ internal sealed class ShellImpactContext
     internal bool LiveImpact;
     internal bool ExplosionPending;
     internal UnityEngine.Vector3 ExplosionPosition;
+    internal readonly HashSet<(IntPtr,short,int)> DeflectedSurfaces=new();
 }
 [HarmonyPatch]
 internal static class RuntimeSpall

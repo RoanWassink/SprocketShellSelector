@@ -8,7 +8,8 @@ internal sealed record SpallSettings(double ConeMultiplier = .3, double ThinCali
     double ApheFuseRhaMm = 25, double ApheFuseDelayMilliseconds = .5,
     double ConeEnergyWidening = .15, double ApheSpallMultiplier = 4, bool ApheExplosionEffect = true,
     double ApheConeHalfAngleDegrees = 90, double ApheExplosionScale = .65,
-    bool ApfsdsDisableClassicNormalization = true);
+    bool ApfsdsDisableClassicNormalization = true, bool ApfsdsPlateDeflection = true,
+    double ApfsdsDeflectionMaximumDegrees = 8, double ApfsdsDeflectionMinimumObliquityDegrees = 30);
 internal static class SpallBalance
 {
     internal static void Validate(SpallSettings s)
@@ -23,6 +24,7 @@ internal static class SpallBalance
         Range(s.ApheFuseRhaMm,1,200); Range(s.ApheFuseDelayMilliseconds,0,5); Range(s.ConeEnergyWidening,0,.5);
         Range(s.ApheSpallMultiplier,1,12);
         Range(s.ApheConeHalfAngleDegrees,1,90);Range(s.ApheExplosionScale,.1,1);
+        Range(s.ApfsdsDeflectionMaximumDegrees,0,15);Range(s.ApfsdsDeflectionMinimumObliquityDegrees,0,80);
     }
     internal static double ConeFactor(double remainingEnergyFraction, SpallSettings s)
     {
@@ -76,7 +78,7 @@ internal static class SpallBalance
         var root=doc.RootElement;
         var expected=new HashSet<string>(StringComparer.Ordinal){"coneMultiplier","thinCalibres","middleCalibres","thickCalibres","thinRatio","middleRatio","thickRatio","curveExponent","apheFragmentCount","apheFragmentMass","apheFragmentSpeed","apheFragmentK"};
         if(root.ValueKind != JsonValueKind.Object) throw new FormatException("Expected spall settings object.");
-        var optional=new HashSet<string>(StringComparer.Ordinal){"remainingPenetrationExponent","apheFuseRhaMm","apheFuseDelayMilliseconds","coneEnergyWidening","apheSpallMultiplier","apheExplosionEffect","apheConeHalfAngleDegrees","apheExplosionScale","apfsdsDisableClassicNormalization"};
+        var optional=new HashSet<string>(StringComparer.Ordinal){"remainingPenetrationExponent","apheFuseRhaMm","apheFuseDelayMilliseconds","coneEnergyWidening","apheSpallMultiplier","apheExplosionEffect","apheConeHalfAngleDegrees","apheExplosionScale","apfsdsDisableClassicNormalization","apfsdsPlateDeflection","apfsdsDeflectionMaximumDegrees","apfsdsDeflectionMinimumObliquityDegrees"};
         foreach(var p in root.EnumerateObject()) if(!expected.Remove(p.Name) && !optional.Remove(p.Name)) throw new FormatException("Unknown or duplicate spall setting: "+p.Name);
         if(expected.Count != 0) throw new FormatException("Missing spall settings.");
         var s=JsonSerializer.Deserialize<SpallSettings>(json,new JsonSerializerOptions{PropertyNamingPolicy=JsonNamingPolicy.CamelCase})!;
