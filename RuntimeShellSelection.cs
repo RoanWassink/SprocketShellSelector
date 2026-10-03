@@ -71,8 +71,12 @@ internal static class RuntimeShellSelection
     private static bool Selected(CannonBlueprint blueprint) => Profile(blueprint) != null;
 
     private static DartBallistics Calculate(CannonBlueprint blueprint) =>
-        ShellBallistics.Calculate(blueprint.Caliber, blueprint.MuzzleVelocity, blueprint.PenetratorConstant,
-            ShellBalance.BallisticSettings(Profile(blueprint) ?? throw new InvalidOperationException("No custom profile selected.")));
+        ShellBalance.Calculate(blueprint.Caliber, blueprint.MuzzleVelocity, blueprint.PenetratorConstant,
+            Profile(blueprint) ?? throw new InvalidOperationException("No custom profile selected."));
+
+    internal static ShellProfile? ProjectileProfile(ProjectileInstance projectile) =>
+        ImpactProfiles.TryGetValue(projectile.Definition.Guid.ToString(),out var impact)
+            ? profiles.FirstOrDefault(p=>p.Id==impact.Id) : null;
 
     private static void Guard(string action, Action work)
     {
@@ -100,8 +104,8 @@ internal static class RuntimeShellSelection
                     {
                         if (index < 0 || index > profiles.Count) return;
                         // Validate before changing the saved selection.
-                        if (index > 0) _ = ShellBallistics.Calculate(blueprint.Caliber, blueprint.MuzzleVelocity,
-                            blueprint.PenetratorConstant, ShellBalance.BallisticSettings(profiles[index - 1]));
+                        if (index > 0) _ = ShellBalance.Calculate(blueprint.Caliber, blueprint.MuzzleVelocity,
+                            blueprint.PenetratorConstant, profiles[index - 1]);
                         Selections[blueprint.Pointer] = new(blueprint,
                             index == 0 ? ShellProfiles.Vanilla : profiles[index - 1].Id);
                         Plugin.ModLog.LogInfo($"[Shell Selection] Cannon {blueprint.Caliber}mm selected {Profile(blueprint)?.Id ?? ShellProfiles.Vanilla}; simulator selection is independent.");
@@ -117,11 +121,13 @@ internal static class RuntimeShellSelection
                     ui.InfoField($"{blueprint.Caliber} mm cannon | {dart.Diameter * 1000:0.0} mm penetrator", 2);
                     ui.InfoField($"{dart.Length * 1000:0} mm long | {dart.Mass:0.00} kg", 2);
                     var selectedProfile=Profile(blueprint)!;
-                    ui.InfoField(selectedProfile.Behavior=="he" ? $"{dart.Velocity:0} m/s | native HE power {ShellBalance.BlastPower(selectedProfile,blueprint.Caliber):0.0}" : selectedProfile.Behavior is "heat" or "hesh" ? $"{dart.Velocity:0} m/s | {ShellBalance.ChemicalPenetration(selectedProfile,blueprint.Caliber):0} mm chemical proxy penetration" : $"{dart.Velocity:0} m/s | {pen:0} mm base RHA penetration", 2);
+                    if(selectedProfile.Behavior=="atgm")
+                        ui.InfoField($"ATGM: cruise {selectedProfile.Atgm!.FlightSpeed:0} m/s | {selectedProfile.Atgm.Acceleration:0} m/s² | {selectedProfile.Atgm.MaxTurnRate:0} deg/s | guidance {selectedProfile.Atgm.GuidanceMode} | flight hook {(RuntimeAtgm.Ready && RuntimeAtgm.Enabled ? "ready" : "unavailable")}",2);
+                    ui.InfoField(selectedProfile.Behavior=="he" ? $"{dart.Velocity:0} m/s | native HE power {ShellBalance.BlastPower(selectedProfile,blueprint.Caliber):0.0}" : selectedProfile.Behavior is "heat" or "hesh" or "atgm" ? $"{dart.Velocity:0} m/s | {ShellBalance.ChemicalPenetration(selectedProfile,blueprint.Caliber):0} mm chemical proxy penetration" : $"{dart.Velocity:0} m/s | {pen:0} mm base RHA penetration", 2);
                     ui.InfoField(Profile(blueprint)!.Behavior == "aphe"
                         ? "APHE: reduced penetration | amplified native AP spall"
                         : Profile(blueprint)!.Behavior == "apfsds" ? "APFSDS: narrow cone | spall increases as remaining penetration falls"
-                        : selectedProfile.Behavior is "he" or "heat" or "hesh" ? $"{selectedProfile.Behavior.ToUpperInvariant()}: EXPERIMENTAL native blast / equivalent penetrator approximation" : $"Fragment damage: {dart.DamageMultiplier:P0} | no explosive filler", 2);
+                        : selectedProfile.Behavior is "he" or "heat" or "hesh" or "atgm" ? $"{selectedProfile.Behavior.ToUpperInvariant()}: EXPERIMENTAL native blast / equivalent penetrator approximation" : $"Fragment damage: {dart.DamageMultiplier:P0} | no explosive filler", 2);
                 }
             }
             finally { layout.EndAllDropdowns(); }
@@ -146,7 +152,7 @@ internal static class RuntimeShellSelection
             __instance.muzzleVelocity.Value = dart.Velocity;
             __instance.projectileMass.Value = dart.Mass;
             var profile=Profile(cannon.Blueprint)!;
-            __instance.penetration.Value = profile.Behavior=="he" ? 0 : profile.Behavior is "heat" or "hesh" ? (float)ShellBalance.ChemicalPenetration(profile,cannon.Blueprint.Caliber) : PenetrationUtils.ComputePenetration(dart.Diameter * 1000,
+            __instance.penetration.Value = profile.Behavior=="he" ? 0 : profile.Behavior is "heat" or "hesh" or "atgm" ? (float)ShellBalance.ChemicalPenetration(profile,cannon.Blueprint.Caliber) : PenetrationUtils.ComputePenetration(dart.Diameter * 1000,
                 dart.Mass, dart.Velocity, dart.PenetratorConstant);
             __instance.dispersion.Value = ShellProperties.CalculateDispersion(cannon.Blueprint.Caliber,
                 CannonProperties.DispersionMeasureDistance, dart.Velocity, cannon.Blueprint.BoreLength);
@@ -178,13 +184,13 @@ internal static class RuntimeShellSelection
                 // once, preserving inherited vehicle velocity. Native Launch then
                 // computes impulse/energy from this definition's real mass/velocity.
                 var type = register.Create(profile.Label, guid, dart.Mass, dart.Diameter, dart.Length,
-                    10f, 30f, functions.Cast<Il2CppSystem.Collections.Generic.IReadOnlyList<ProjectileFunctionDefinition>>());
+                    profile.Behavior=="atgm" ? 1f : 10f, (float)(profile.Atgm?.MaximumFlightTime ?? 30), functions.Cast<Il2CppSystem.Collections.Generic.IReadOnlyList<ProjectileFunctionDefinition>>());
                 registered = new(register, type);
                 Types[key] = registered;
                 if (diagnostics.Value) Plugin.ModLog.LogInfo($"[APFSDS Beta] Registered {guid}: " +
                     $"diameter={dart.Diameter * 1000:0.0}mm length={dart.Length * 1000:0}mm mass={dart.Mass:0.000}kg K={dart.PenetratorConstant}");
             }
-            DamageFactors[registered.Type.Guid.ToString()] = profile.Behavior is "apfsds" or "aphe" or "heat" or "hesh" ? 1f : dart.DamageMultiplier;
+            DamageFactors[registered.Type.Guid.ToString()] = profile.Behavior is "apfsds" or "aphe" or "heat" or "hesh" or "atgm" ? 1f : dart.DamageMultiplier;
             ImpactProfiles[registered.Type.Guid.ToString()] = (profile.Id, cannon.Blueprint.Caliber * .001f);
             var direction = launchState.Direction;
             if (direction.sqrMagnitude < .00001f) throw new InvalidOperationException("Invalid launch direction.");

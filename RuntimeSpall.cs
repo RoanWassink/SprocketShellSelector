@@ -6,7 +6,7 @@ internal sealed class ShellImpactContext
 {
     internal string ProfileId = "";
     internal ShellProfile? Profile;
-    internal string Behavior => Profile?.Behavior ?? ProfileId;
+    internal string Behavior => Profile is {} profile ? ShellBalance.ImpactBehavior(profile) : ProfileId;
     internal bool ChemicalInitialized;
     internal bool ChemicalVisualPlayed;
     internal readonly HashSet<IntPtr> PayloadBursts = new();

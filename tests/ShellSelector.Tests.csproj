@@ -3,4 +3,5 @@
   <ItemGroup><Compile Include="..\ShellBallistics.cs" Link="ShellBallistics.cs"/><Compile Include="..\ShellProfiles.cs" Link="ShellProfiles.cs"/><Compile Include="..\ShellConfigMigration.cs" Link="ShellConfigMigration.cs"/><Compile Include="..\SpallBalance.cs" Link="SpallBalance.cs"/></ItemGroup>
   <ItemGroup><Compile Include="..\ShellBalance.cs" Link="ShellBalance.cs"/><Compile Include="..\ShellPayload.cs" Link="ShellPayload.cs"/><Compile Include="..\PlateDeflection.cs" Link="PlateDeflection.cs"/></ItemGroup>
   <ItemGroup><Compile Include="..\ReleaseProfiles.cs" Link="ReleaseProfiles.cs"/><EmbeddedResource Include="..\default-shells.json" LogicalName="ShellSelector.Defaults" /></ItemGroup>
+  <ItemGroup><Compile Include="..\AtgmGuidance.cs" Link="AtgmGuidance.cs" /></ItemGroup>
 </Project>

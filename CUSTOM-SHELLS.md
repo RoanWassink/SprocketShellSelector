@@ -1,6 +1,6 @@
 # Making your own shell profiles
 
-This guide describes **v0.9.8**. Profiles do not change the cannon's propellant setting or visible ammunition model.
+This guide describes **v0.10.0 release candidate 1**. Profiles do not change the cannon's propellant setting or visible ammunition model.
 
 ## Add a shell
 
@@ -102,7 +102,7 @@ Other behaviors use the configured quality directly. More quality means lower K 
 
 | Setting | Range | Meaning |
 |---|---|---|
-| `chemicalPenetrationMm` | 0â€“2000; positive for HEAT/HESH | Initial RHA capacity at a **100mm gun**; actual capacity is value Ã— calibre/100, bounded to 1â€“2000mm |
+| `chemicalPenetrationMm` | 0â€“2000; positive for HEAT/HESH/ATGM | Initial RHA capacity at a **100mm gun**; actual capacity is value Ã— calibre/100, bounded to 1â€“2000mm |
 | `secondPlatePenetrationFactor` | 0.01â€“1 | Lower bound of each air-gap retention curve, applied to CURRENT remaining penetration; defaults HEAT .15, HESH .10 |
 | `airGapLossPerCalibre` | 0â€“100 | Additional gap-loss sensitivity; HEAT defaults .35, HESH 12; independently configurable per profile. Zero disables extra gap loss |
 | `nativeExplosivePower` | 0â€“500; positive for HE | Reference native blast power at 100mm; scales with calibreÂ³ and is capped at 500. Not calibrated kg TNT |
@@ -139,3 +139,49 @@ Payload fragment mass scales with calibreÂ³, while counts scale with calibre and
 - Compare shells at equal full gun calibre. Simulator penetration is manual; chemical modes also obey their configured cap. Select the live shell separately on the cannon.
 
 Back up config before tuning. Restart after edits and check `BepInEx/LogOutput.log` if the selector disappears.
+
+## Custom ATGMs
+
+Copy either ATGM example from [default-shells.json](default-shells.json), change ID/label, keep `"behavior": "atgm"`, and choose `"guidanceMode": "sight"`, `"keyboard"` or `"none"`. IDs do not determine guidance. Both guided modes share the same motor controls and HEAT impact logic; `none` is powered straight flight.
+
+| Setting | Range / default when omitted | Interaction |
+|---|---|---|
+| `referenceCalibreMm` | 10–500 / 100 | Calibre at which chemicalPenetrationMm applies; examples use 135 |
+| `flightSpeed` | 50–1000 / 200 | Maximum powered speed, m/s |
+| `launchSpeedMode` | fixed or cannon / fixed | Choose configured launch speed or native cannon muzzle velocity |
+| `launchSpeed` | 10–flightSpeed / flightSpeed | Initial speed in fixed mode; still validated if supplied in cannon mode |
+| `launchSpeedMultiplier` | 0.01–4 / 1 | In cannon mode, multiply native muzzle velocity then clamp to 10–flightSpeed |
+| `acceleration` | 0–2000 / 0 | Motor acceleration in m/s²; zero retains initial speed |
+| `motorDelay` | 0–5 / 0 | Seconds after spawn before acceleration; less than flight lifetime if acceleration > 0 |
+| `maxTurnRate` | 0–90 / 20 | Degrees/second shared by both guidance modes; diagonal keyboard commands share the limit |
+| `maximumFlightTime` | 1–60 / 25 | Seconds before missile release without additional detonation |
+| `guidanceDelay` | 0–5 / 0.25 | Delay before steering; must be less than maximumFlightTime |
+| `guidanceMode` | sight, keyboard or none / sight | Reticle, WASD or straight flight |
+
+For a soft launch, add these fields inside either existing ATGM profile:
+
+```json
+"launchSpeedMode": "fixed",
+"launchSpeed": 50,
+"launchSpeedMultiplier": 1,
+"acceleration": 150,
+"motorDelay": 0.15,
+"flightSpeed": 200
+```
+
+For propellant-dependent launch speed, use `"launchSpeedMode": "cannon"` and e.g. `"launchSpeedMultiplier": 0.2`. A native 400 m/s cannon launches at 80 m/s; an 800 m/s cannon launches at 160 m/s; speeds above 200 m/s are capped when flightSpeed is 200. Cannon propellant/barrel/technology changes affect the native muzzle speed. The missile motor uses its own `acceleration`; it is not automatically strengthened by a longer cannon charge.
+
+```text
+fixed launch = launchSpeed (or flightSpeed if omitted)
+cannon launch = clamp(native cannon muzzle velocity × launchSpeedMultiplier, 10, flightSpeed)
+powered speed(t) = min(flightSpeed, initial speed + acceleration × max(0, t - motorDelay))
+chemical penetration = clamp(chemicalPenetrationMm × gun calibre / referenceCalibreMm, 1, 2000)
+```
+
+Launch inherits vehicle velocity. The controller records the resulting initial world-speed magnitude, clamped to 10–flightSpeed, and applies the motor curve to that speed. Native gravity/drag can act within each physics tick; the next powered command restores the curve. This is a gameplay motor model, not thrust/mass/fuel simulation. Guidance starts independently of motor delay. Flight time with acceleration is not simply distance/cruise speed near the launcher.
+
+Penetration does not increase with flight speed: ATGM uses its configured chemical budget and HEAT air-gap losses. Tune `chemicalPenetrationMm`, `spallMultiplier`, `coneHalfAngleDegrees` and `explosionScale` for the impact; velocityEfficiency/maximumVelocity remain validated body fields but do not control ATGM launch speed. Changing launch speed does not change the native ammunition mesh, propellant UI, storage or loading cost.
+
+Old custom ATGMs without motor fields retain constant flightSpeed. Migration writes explicit equivalent settings and a backup. At the 16-profile limit, free a slot to add a missing example. Do not replace your whole config with default-shells.json unless you want to discard custom shells.
+
+See [ATGM.md](ATGM.md) for controls, guidance references and rollback.

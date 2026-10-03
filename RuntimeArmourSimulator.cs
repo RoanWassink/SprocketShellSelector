@@ -21,7 +21,7 @@ internal static class RuntimeArmourSimulator
     }
     private static ShellProfile? Selected(ArmourOverlay? overlay) => RuntimeShellSelection.Enabled && overlay!=null && Choices.TryGetValue(overlay.Pointer,out var choice)
         ? RuntimeShellSelection.Profiles.FirstOrDefault(p=>p.Id==choice.Id) : null;
-    private static float EffectivePenetration(ShellProfile profile,ArmourOverlay overlay) => profile.Behavior is "heat" or "hesh"
+    private static float EffectivePenetration(ShellProfile profile,ArmourOverlay overlay) => profile.Behavior is "heat" or "hesh" or "atgm"
         ? Math.Min(overlay.Penetration,(float)ShellBalance.ChemicalPenetration(profile,overlay.Calibre)) : overlay.Penetration;
     [HarmonyPrefix,HarmonyPatch(typeof(ArmourOverlayConfig),nameof(ArmourOverlayConfig.Draw))]
     private static void Limits(ArmourOverlayConfig __instance)
@@ -90,7 +90,7 @@ internal static class RuntimeArmourSimulator
         try
         {
             var dart=ShellBallistics.Calculate(overlay!.Calibre,800,overlay.PenetratorConstant,ShellBalance.BallisticSettings(profile));
-            if(profile.Behavior=="heat") dart=dart with {Diameter=overlay.Calibre*.001f*.05f,Mass=dart.Mass*.05f};
+            if(ShellBalance.ImpactBehavior(profile)=="heat") dart=dart with {Diameter=overlay.Calibre*.001f*.05f,Mass=dart.Mass*.05f};
             var speed=PenetrationUtils.ComputeRequiredPenetrationSpeed(dart.Diameter*1000,dart.Mass,EffectivePenetration(profile,overlay),dart.PenetratorConstant);
             var direction=penetrator.Velocity.normalized;
             if(!float.IsFinite(speed)||speed<=0||direction.sqrMagnitude<.5f)throw new InvalidOperationException("Invalid synthetic simulator shot.");

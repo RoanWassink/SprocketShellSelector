@@ -1,8 +1,8 @@
 # Sprocket Shell Selector
 
-A vibe-coded BepInEx IL2CPP plugin that adds **APFSDS long/short rod, APHE, HE, HEAT and HESH** profiles to Sprocket.
+A vibe-coded BepInEx IL2CPP plugin that adds **APFSDS long/short rod, APHE, HE, HEAT, HESH and guided ATGM** profiles to Sprocket.
 
-Built with AI assistance. v0.9.7 was accepted in user gameplay/simulator testing. Log review covered 312 HEAT and 2 HESH simulations: 115 HEAT simulations produced multiple bursts; all 309 gap events matched the calculated curve within log rounding. v0.9.8 adds user-tested profile validation diagnostics and passes 241 standalone managed checks. Shell mechanics and accepted ranges are unchanged.
+Built with AI assistance. **v0.10.0 release candidate 1** adds sight-guided and keyboard-guided ATGM profiles with JSON-configurable launch speed and motor acceleration. Both guidance modes were accepted in user gameplay testing; the new motor settings have passed managed checks and still need a live smoke test. Existing shell mechanics remain unchanged.
 
 ## Requirements
 
@@ -31,8 +31,10 @@ Updating adds missing release presets while preserving existing profiles, with a
 | HE | Native explosion damage; larger visual explosion than APHE. |
 | HEAT | High first-plate penetration and powerful fragments in a narrow cone. |
 | HESH | Heavy, broad spall against simpler armour; less first-plate penetration than HEAT. |
+| Konkurs-like ATGM | Sight-guided gameplay proxy, chemical HEAT impact; nominal 600 mm at 135 mm calibre. |
+| MCLOS keyboard ATGM | Manually steer with WASD; tank controls blocked during the controllable missile flight. |
 
-These are **gameplay approximations**, not physical shaped-charge, erosion or backface-scabbing simulations. All profiles scale with full gun calibre. APFSDS spall increases as remaining penetration decreases; its cone can widen by up to 15% with remaining energy. Long/short rod also differ in calculated mass/speed and a length-based efficiency/cone modifier. Native projectile paths remain in use.
+These are **gameplay approximations**, not physical shaped-charge, erosion or backface-scabbing simulations. All profiles scale with full gun calibre. APFSDS spall increases as remaining penetration decreases; its cone can widen by up to 15% with remaining energy. Long/short rod also differ in calculated mass/speed and a length-based efficiency/cone modifier. Native projectile paths remain in use for non-ATGM shells; ATGM flight is steered before native movement and collision processing.
 
 APHE and HESH produce one amplified payload burst after native perforation. HEAT can produce concentrated spall at subsequent plates when its original jet perforates them; secondary fragments cannot trigger repeated amplified payload bursts. Fragment mass scales with calibre cubed; count scales with calibre and is bounded to 32 per burst. Payload fragment speed does not collapse when the shell barely penetrates. HESH still needs perforation to generate spall. APHE attempts to stop the parent after its burst.
 
@@ -48,17 +50,30 @@ HE native blast power scales with calibre cubed, with an upper limit. It has no 
 
 Shell selection applies to cannons sharing a blueprint and overrides loaded AP/APHE rounds. Ammunition storage, loading and costs remain vanilla.
 
+## Guided ATGMs
+
+Select the missile profile **on the cannon** and test in live play. Both examples are available at any calibre: chemical penetration scales from 600 mm at 135 mm; flight speed is configured separately. They reuse HEAT impact and spaced-armour mechanics.
+
+- **Konkurs-like ATGM:** steer by moving the scope or third-person reticle. Keep controlling the launching vehicle. Reloading does not disable guidance.
+- **MCLOS keyboard ATGM:** enter your preferred view before firing, then use **W/S** for up/down and **A/D** for left/right. Mouse aim does not steer it. Driving, aiming and firing commands are blocked during the controllable missile flight; controls return after impact, expiry or loss of the launcher. The tank can coast. General camera/UI processing remains available, but vehicle actions such as scope toggling are blocked.
+- Only the newest missile per vehicle receives commands. Switching vehicles stops new commands; the missile continues on its last heading. No input-action maps are permanently disabled.
+- Fresh examples launch at **50 m/s**, accelerate at **150 m/s²** after **0.15 s**, and cap at **200 m/s**. These are editable gameplay defaults, not measured Konkurs launch/motor data.
+
+See [ATGM settings and testing](ATGM.md) and [custom shell profiles](CUSTOM-SHELLS.md). There is no target lock, fire-and-forget seeker, top attack, missile camera, new launcher mesh, smoke trail or tandem warhead. ATGM explosions are visual HEAT effects, not additional independent HE blast damage.
+
+Existing ATGM configs keep their values. Migration exposes missing motor fields with the previous constant-speed behavior (`launchSpeed = flightSpeed`, `acceleration = 0`); it does not overwrite customized profiles. To use the new soft-launch example on an existing profile, set the motor fields yourself. Original test profile IDs remain stable for vehicle saves; stock display labels lose the TEST suffix.
+
 ## Armour simulator
 
 Choose a profile under **Simulator shell profile**. This does not change the live shell selected on your cannon.
 
-Calibre means full gun calibre, including for APFSDS. The penetration slider extends to **2000mm** and is manually selected, not a prediction of your cannon's performance. HEAT/HESH use the lower of the slider and their calibre-scaled chemical penetration budget. The native colour overlay is a simpler approximation of the detailed simulation.
+Calibre means full gun calibre, including for APFSDS. The penetration slider extends to **2000mm** and is manually selected, not a prediction of your cannon's performance. HEAT/HESH/ATGM use the lower of the slider and their calibre-scaled chemical penetration budget. The native colour overlay is a simpler approximation of the detailed simulation.
 
-HE is live-firing only and omitted from the simulator list. Explosion visuals are live-only.
+HE is live-firing only and omitted from the simulator list. Explosion visuals are live-only. The simulator tests ATGM impact, not powered flight or guidance.
 
 ## Custom shells
 
-See [Making your own shell profiles](CUSTOM-SHELLS.md). **Any unique ID can now use `"behavior": "apfsds"`** and receive the full rod behavior. The same applies to APHE, HE, HEAT and HESH. Copy the long/short rod examples to create your own rods.
+See [Making your own shell profiles](CUSTOM-SHELLS.md). **Any unique ID can now use `"behavior": "apfsds"`** and receive the full rod behavior. The same applies to APHE, HE, HEAT, HESH and ATGM. Copy the long/short rod examples to create your own rods.
 
 ## Configuration
 
@@ -66,6 +81,7 @@ Edit with the game closed, then restart:
 
 - `Sprocket\BepInEx\config\sprocket.shellselector.shells.json`: profiles, ballistics and payload settings.
 - `Sprocket\BepInEx\config\sprocket.shellselector.spall.json`: global APFSDS/APHE spall and APHE visuals.
+- `Sprocket\BepInEx\config\nl.roan.sprocket.shellselector.cfg`: optional ATGM module (`ATGM Experimental / Enabled`) and detailed flight logs (`DiagnosticLogging`, default false).
 
 | Global setting | Default | Effect |
 |---|---|---|
