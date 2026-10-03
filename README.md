@@ -142,3 +142,6 @@ Created by RoanWassink with AI assistance. The native inspector integration foll
 ## License
 
 [MIT](LICENSE), covering this plugin's code.
+
+Donations
+For ChatGPT budget. Helps me reverse engineer sprocket to add cool mods. https://www.paypal.com/donate/?hosted_button_id=7PE3SDBETXFQ6
