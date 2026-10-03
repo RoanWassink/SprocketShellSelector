@@ -38,6 +38,10 @@ Choose a profile under **Simulator shell profile**. Calibre always means the ful
 
 The detailed simulation uses the selected profile's geometry and mass. The native colour overlay uses a simpler calibre approximation. Live explosion effects are not shown in the simulator.
 
+## Custom shells
+
+See [Making your own shell profiles](CUSTOM-SHELLS.md) for a valid JSON example, supported ranges, how geometry affects mass and speed, and the v0.8.1 limits on custom APFSDS/APHE behaviour.
+
 ## Configuration
 
 The plugin creates these files in `Sprocket\BepInEx\config`. Edit them with the game closed, then restart:
