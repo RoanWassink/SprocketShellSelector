@@ -125,3 +125,7 @@ Created by RoanWassink with AI assistance. The native inspector integration foll
 ## License
 
 [MIT](LICENSE). The license applies to this plugin's code; game and loader assemblies are not distributed with it.
+
+## Donations
+If you want to help me pay for ChatGPT to keep reverse engineering sprocket you can donate something, or not!
+https://www.paypal.com/donate/?hosted_button_id=7PE3SDBETXFQ6
