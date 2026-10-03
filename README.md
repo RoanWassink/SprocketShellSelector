@@ -2,7 +2,7 @@
 
 A vibe-coded BepInEx IL2CPP plugin that adds **APFSDS long/short rod, APHE, HE, HEAT and HESH** profiles to Sprocket.
 
-Built with AI assistance. v0.9.7 was accepted in user gameplay/simulator testing. Log review covered 312 HEAT and 2 HESH simulations: 115 HEAT simulations produced multiple bursts; all 309 gap events matched the calculated curve within log rounding. The release passes 233 standalone managed checks.
+Built with AI assistance. v0.9.7 was accepted in user gameplay/simulator testing. Log review covered 312 HEAT and 2 HESH simulations: 115 HEAT simulations produced multiple bursts; all 309 gap events matched the calculated curve within log rounding. v0.9.8 adds user-tested profile validation diagnostics and passes 241 standalone managed checks. Shell mechanics and accepted ranges are unchanged.
 
 ## Requirements
 
@@ -103,6 +103,8 @@ Select it on the cannon as well as in the simulator. Those selections are indepe
 ## Troubleshooting
 
 Check `Sprocket\BepInEx\LogOutput.log` for `Sprocket Shell Selector`, `[Shell Selection]`, `[Payload burst]`, `[Chemical layers]`, `[Armour Simulator]` or `[APHE Effect]`.
+
+If an older build reports `Invalid APFSDS balance setting`, check every custom profile, including HEAT/HESH. All behaviors share the [ballistic validation limits](CUSTOM-SHELLS.md#ballistic-variables): `maximumVelocityFactor` must be 1–4. v0.9.8 identifies the profile, field, received value and range. Invalid configurations are preserved; correct the reported setting and restart rather than deleting your custom shells.
 
 Include the game/loader version, profile, relevant log lines and reproduction steps. For simulator issues include calibre, penetration and a screenshot. To roll back, close the game and restore your previous DLL and configuration backup.
 

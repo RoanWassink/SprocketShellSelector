@@ -1,6 +1,6 @@
 # Making your own shell profiles
 
-This guide describes **v0.9.7**. Profiles do not change the cannon's propellant setting or visible ammunition model.
+This guide describes **v0.9.8**. Profiles do not change the cannon's propellant setting or visible ammunition model.
 
 ## Add a shell
 
@@ -58,7 +58,7 @@ Calibre is full gun calibre. Ranges are inclusive.
 | `penetratorDensity` | 1000–25000 | kg/m³; mass scales with density |
 | `velocityEfficiency` | 0.1–2 | Multiplies mass-based speed factor |
 | `velocityMultiplier` | 0.1–4 | Further speed tuning before limits |
-| `maximumVelocityFactor` | 1–4 | Maximum multiple of vanilla muzzle speed |
+| `maximumVelocityFactor` | 1–4 | Maximum multiple of vanilla muzzle speed; values below 1 are invalid for every behavior |
 | `maximumVelocity` | 100–5000 | Final absolute speed cap in m/s |
 | `penetrationQuality` | 0.1–4 | Higher improves penetration via native constant; no direct speed change |
 | `fragmentDamageMultiplier` | 0.01–1 | Health-damage scaling for `ap`; APFSDS/APHE/HEAT/HESH use dedicated damage handling instead |
@@ -74,6 +74,19 @@ speed = min(vanillaSpeed × clamp(raw factor, 1, maximumVelocityFactor),
 ```
 
 Doubling rod length doubles mass. Doubling diameter quadruples mass. A heavier rod can slow down; a lighter one can speed up. The speed-factor floor is 1, so lowering efficiency eventually stops reducing speed; the absolute cap can still put speed below vanilla. Increasing speed settings has no effect once an upper limit is reached.
+
+### Configuration errors
+
+Every numeric setting must be finite and within its inclusive range above or in the payload table below. Ballistic limits apply to **all behaviors**, including HEAT and HESH. `maximumVelocityFactor: 0.75` is invalid even for an `early_heat` profile: the speed-factor calculation also has a lower bound of 1. Use a factor of at least 1; a lower absolute `maximumVelocity` can cap muzzle speed below vanilla if desired. This does not create velocity-independent HEAT mechanics by itself.
+
+v0.9.8 reports the offending profile, JSON field, received value and limits, for example:
+
+```text
+Profile 'early_heat': maximumVelocityFactor is 0.75; expected 1–4 (finite, inclusive).
+```
+
+Earlier builds, including v0.9.4, instead report `Invalid APFSDS balance setting` for any behavior using the shared validator. This can come from a HEAT profile even when APFSDS profiles are valid. Invalid custom configurations are rejected and left intact; the mod does not silently replace their settings. Correct the reported field in `BepInEx/config/sprocket.shellselector.shells.json`, then restart the game. These messages do not relax the ranges or change the speed formula.
+
 
 APFSDS also applies:
 

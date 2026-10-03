@@ -44,14 +44,20 @@ internal static class ShellProfiles
                 throw new FormatException($"Invalid, duplicate or reserved profile id: {id}.");
             if (string.IsNullOrWhiteSpace(label) || label.Length > 80 || label.Any(char.IsControl) || !labels.Add(label))
                 throw new FormatException($"Invalid or duplicate profile label for {id}.");
-            double Number(string name) => item.GetProperty(name).GetDouble();
+            double ReadNumber(string name, JsonElement value)
+            {
+                if (value.ValueKind != JsonValueKind.Number || !value.TryGetDouble(out var number))
+                    throw new FormatException($"Profile '{id}': {name} is {value.GetRawText()}; expected a numeric value.");
+                return number;
+            }
+            double Number(string name) => ReadNumber(name, item.GetProperty(name));
             var settings = new DartSettings(Number("penetratorDiameterFactor"), Number("penetratorLengthInCalibres"),
                 Number("penetratorDensity"), Number("velocityEfficiency"), Number("maximumVelocityFactor"),
                 Number("maximumVelocity"), Number("penetrationQuality"), Number("fragmentDamageMultiplier"),
                 Number("velocityMultiplier"));
-            _ = ShellBallistics.Calculate(120, 800, 1800, settings);
+            ShellBallistics.ValidateSettings(settings, id);
             var behavior = item.TryGetProperty("behavior",out var mode) ? mode.GetString() ?? "" : id is "apfsds" or "aphe" ? id : "ap";
-            double Option(string key,double fallback) => item.TryGetProperty(key,out var value) ? value.GetDouble() : fallback;
+            double Option(string key,double fallback) => item.TryGetProperty(key,out var value) ? ReadNumber(key, value) : fallback;
             var profile = new ShellProfile(id,label,settings,behavior,
                 Option("chemicalPenetrationMm",0),Option("nativeExplosivePower",0),
                 Option("spallMultiplier",1),Option("coneHalfAngleDegrees",90),Option("explosionScale",1),Option("secondPlatePenetrationFactor",behavior=="hesh"?.1:.15),Option("airGapLossPerCalibre",behavior=="hesh"?12:.35));

@@ -389,3 +389,42 @@ Check(ShellBalance.SuppressPayloadBurst("hesh",true,true),"HESH retains single p
 Check(ShellBalance.SuppressPayloadBurst("aphe",true,true),"APHE retains single payload burst");
 Check(!ShellBalance.SuppressPayloadBurst("heat",true,false),"first HEAT burst allowed");
 Console.WriteLine($"v0.9.7 MULTIPLATE PASS: {checks} checks.");
+
+// A valid APFSDS entry must not be blamed for another behavior's invalid settings.
+var earlyHeatNode = System.Text.Json.Nodes.JsonNode.Parse(objectJson)!;
+earlyHeatNode["id"] = "early_heat";
+earlyHeatNode["label"] = "Early HEAT";
+earlyHeatNode["behavior"] = "heat";
+earlyHeatNode["chemicalPenetrationMm"] = 250;
+earlyHeatNode["maximumVelocityFactor"] = .75;
+var mixedInvalidJson = "{\"schemaVersion\":1,\"profiles\":[" + objectJson + "," + earlyHeatNode.ToJsonString() + "]}";
+var previousCulture = System.Globalization.CultureInfo.CurrentCulture;
+try
+{
+ System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("nl-NL");
+ try { ShellProfiles.Parse(mixedInvalidJson); Check(false,"invalid HEAT setting rejected"); }
+ catch(ArgumentOutOfRangeException ex)
+ {
+  Check(ex.Message.StartsWith("Profile 'early_heat': maximumVelocityFactor is 0.75; expected 1–4"),"diagnostic identifies HEAT profile, JSON field, value and inclusive limits using invariant numbers");
+  Check(ex.ParamName=="maximumVelocityFactor" && !ex.Message.Contains("APFSDS"),"shared validation no longer incorrectly names APFSDS");
+ }
+} finally { System.Globalization.CultureInfo.CurrentCulture = previousCulture; }
+earlyHeatNode["maximumVelocityFactor"] = 1;
+Check(ShellProfiles.Parse("{\"schemaVersion\":1,\"profiles\":["+objectJson+","+earlyHeatNode.ToJsonString()+"]}").Count==2,"minimum valid factor still accepts APFSDS and HEAT together");
+earlyHeatNode["spallMultiplier"] = 13;
+try { ShellProfiles.Parse("{\"schemaVersion\":1,\"profiles\":["+objectJson+","+earlyHeatNode.ToJsonString()+"]}"); Check(false,"invalid payload rejected"); }
+catch(FormatException ex) { Check(ex.Message.Contains("Profile 'early_heat': spallMultiplier is 13; expected 1–12"),"payload diagnostic includes profile and field limits"); }
+var diagnosticsDir=Path.Combine(Path.GetTempPath(),"shell-diagnostics-"+Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(diagnosticsDir);
+try
+{
+ var path=Path.Combine(diagnosticsDir,"sprocket.shellselector.shells.json");
+ File.WriteAllText(path,mixedInvalidJson);
+ foreach(var migrate in new Func<string,bool>[] {ShellConfigMigration.EnsureApheProfile,ReleaseProfiles.Upgrade})
+ {
+  try {migrate(path);Check(false,"migration rejects invalid custom profile");}
+  catch(ArgumentOutOfRangeException ex) {Check(ex.Message.Contains("Profile 'early_heat': maximumVelocityFactor is 0.75"),"migration preserves actionable parse error");}
+  Check(File.ReadAllText(path)==mixedInvalidJson && Directory.GetFiles(diagnosticsDir).Length==1,"invalid custom config remains exact with no backups or temporary writes");
+ }
+} finally {Directory.Delete(diagnosticsDir,true);}
+Console.WriteLine($"PROFILE DIAGNOSTICS PASS: {checks} checks.");
