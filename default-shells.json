@@ -99,7 +99,7 @@
     },
     {
       "id": "atgm_konkurs_test",
-      "label": "Konkurs-like ATGM",
+      "label": "SACLOS ATGM",
       "behavior": "atgm",
       "penetratorDiameterFactor": 0.9,
       "penetratorLengthInCalibres": 5,
@@ -130,7 +130,7 @@
     },
     {
       "id": "atgm_mclos_test",
-      "label": "MCLOS keyboard ATGM",
+      "label": "MCLOS ATGM",
       "behavior": "atgm",
       "penetratorDiameterFactor": 0.9,
       "penetratorLengthInCalibres": 5,

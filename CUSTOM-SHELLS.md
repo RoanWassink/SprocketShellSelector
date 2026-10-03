@@ -1,6 +1,6 @@
 # Making your own shell profiles
 
-This guide describes **v0.10.0 release candidate 1**. Profiles do not change the cannon's propellant setting or visible ammunition model.
+This guide describes **v0.10.0**. Profiles do not change the cannon's propellant setting or visible ammunition model.
 
 ## Add a shell
 
@@ -9,7 +9,7 @@ This guide describes **v0.10.0 release candidate 1**. Profiles do not change the
 3. Give it a unique `id` and `label`. Set `behavior` to the shell mechanics you want.
 4. Save valid JSON, restart, and select it on the cannon. The simulator has its own separate selection.
 
-Use `{"schemaVersion": 1, "profiles": [ ... ]}`. Separate objects with commas, with no trailing commas or comments. Up to 16 profiles; IDs use lowercase letters, digits, `_`, `-` (1–40 characters). Labels are unique ignoring case (1–80 characters). `vanilla` / `Vanilla ammunition` are reserved. Unknown/duplicate keys or invalid values reject the file.
+Use `{"schemaVersion": 1, "profiles": [ ... ]}`. Separate objects with commas, with no trailing commas or comments. Up to 16 profiles; IDs use lowercase letters, digits, `_`, `-` (1â€“40 characters). Labels are unique ignoring case (1â€“80 characters). `vanilla` / `Vanilla ammunition` are reserved. Unknown/duplicate keys or invalid values reject the file.
 
 ## Copyable APFSDS example
 
@@ -53,23 +53,23 @@ Calibre is full gun calibre. Ranges are inclusive.
 
 | Setting | Range | Interaction |
 |---|---|---|
-| `penetratorDiameterFactor` | 0.05–0.9 | Projectile diameter / gun calibre; mass scales with diameter squared |
-| `penetratorLengthInCalibres` | 0.5–10 | Length / full gun calibre; mass scales with length |
-| `penetratorDensity` | 1000–25000 | kg/m³; mass scales with density |
-| `velocityEfficiency` | 0.1–2 | Multiplies mass-based speed factor |
-| `velocityMultiplier` | 0.1–4 | Further speed tuning before limits |
-| `maximumVelocityFactor` | 1–4 | Maximum multiple of vanilla muzzle speed; values below 1 are invalid for every behavior |
-| `maximumVelocity` | 100–5000 | Final absolute speed cap in m/s |
-| `penetrationQuality` | 0.1–4 | Higher improves penetration via native constant; no direct speed change |
-| `fragmentDamageMultiplier` | 0.01–1 | Health-damage scaling for `ap`; APFSDS/APHE/HEAT/HESH use dedicated damage handling instead |
+| `penetratorDiameterFactor` | 0.05â€“0.9 | Projectile diameter / gun calibre; mass scales with diameter squared |
+| `penetratorLengthInCalibres` | 0.5â€“10 | Length / full gun calibre; mass scales with length |
+| `penetratorDensity` | 1000â€“25000 | kg/mÂ³; mass scales with density |
+| `velocityEfficiency` | 0.1â€“2 | Multiplies mass-based speed factor |
+| `velocityMultiplier` | 0.1â€“4 | Further speed tuning before limits |
+| `maximumVelocityFactor` | 1â€“4 | Maximum multiple of vanilla muzzle speed; values below 1 are invalid for every behavior |
+| `maximumVelocity` | 100â€“5000 | Final absolute speed cap in m/s |
+| `penetrationQuality` | 0.1â€“4 | Higher improves penetration via native constant; no direct speed change |
+| `fragmentDamageMultiplier` | 0.01â€“1 | Health-damage scaling for `ap`; APFSDS/APHE/HEAT/HESH use dedicated damage handling instead |
 
 ```text
-diameter = calibreMetres × diameterFactor
-length   = calibreMetres × lengthInCalibres
-mass     = π/4 × diameter² × length × density
-raw speed factor = sqrt((1.59e-5 × calibreMm³) / mass)
-                   × velocityEfficiency × velocityMultiplier
-speed = min(vanillaSpeed × clamp(raw factor, 1, maximumVelocityFactor),
+diameter = calibreMetres Ã— diameterFactor
+length   = calibreMetres Ã— lengthInCalibres
+mass     = Ï€/4 Ã— diameterÂ² Ã— length Ã— density
+raw speed factor = sqrt((1.59e-5 Ã— calibreMmÂ³) / mass)
+                   Ã— velocityEfficiency Ã— velocityMultiplier
+speed = min(vanillaSpeed Ã— clamp(raw factor, 1, maximumVelocityFactor),
             maximumVelocity)
 ```
 
@@ -82,7 +82,7 @@ Every numeric setting must be finite and within its inclusive range above or in 
 v0.9.8 reports the offending profile, JSON field, received value and limits, for example:
 
 ```text
-Profile 'early_heat': maximumVelocityFactor is 0.75; expected 1–4 (finite, inclusive).
+Profile 'early_heat': maximumVelocityFactor is 0.75; expected 1â€“4 (finite, inclusive).
 ```
 
 Earlier builds, including v0.9.4, instead report `Invalid APFSDS balance setting` for any behavior using the shared validator. This can come from a HEAT profile even when APFSDS profiles are valid. Invalid custom configurations are rejected and left intact; the mod does not silently replace their settings. Correct the reported field in `BepInEx/config/sprocket.shellselector.shells.json`, then restart the game. These messages do not relax the ranges or change the speed formula.
@@ -91,8 +91,8 @@ Earlier builds, including v0.9.4, instead report `Invalid APFSDS balance setting
 APFSDS also applies:
 
 ```text
-effective quality = clamp(penetrationQuality × sqrt(lengthInCalibres/5), 0.1, 4)
-rod cone modifier = clamp(1 + (5-lengthInCalibres) × 0.06, 0.7, 1.25)
+effective quality = clamp(penetrationQuality Ã— sqrt(lengthInCalibres/5), 0.1, 4)
+rod cone modifier = clamp(1 + (5-lengthInCalibres) Ã— 0.06, 0.7, 1.25)
 K = clamp(round(vanillaK / effectiveQuality^(1/1.43)), 1, 65535)
 ```
 
@@ -102,13 +102,13 @@ Other behaviors use the configured quality directly. More quality means lower K 
 
 | Setting | Range | Meaning |
 |---|---|---|
-| `chemicalPenetrationMm` | 0–2000; positive for HEAT/HESH/ATGM | Initial RHA capacity at a **100mm gun**; actual capacity is value × calibre/100, bounded to 1–2000mm |
-| `secondPlatePenetrationFactor` | 0.01–1 | Lower bound of each air-gap retention curve, applied to CURRENT remaining penetration; defaults HEAT .15, HESH .10 |
-| `airGapLossPerCalibre` | 0–100 | Additional gap-loss sensitivity; HEAT defaults .35, HESH 12; independently configurable per profile. Zero disables extra gap loss |
-| `nativeExplosivePower` | 0–500; positive for HE | Reference native blast power at 100mm; scales with calibre³ and is capped at 500. Not calibrated kg TNT |
-| `spallMultiplier` | 1–12 | HEAT/HESH fragment volume/count tuning; release reference values HEAT 1.5, HESH 8 |
-| `coneHalfAngleDegrees` | 1–90 | HEAT/HESH half-angle: default HEAT 8 gives 16° total; HESH 70 gives 140° |
-| `explosionScale` | 0.1–3 | HE/HEAT/HESH visual asset scale, also scaled with calibre; no direct damage change |
+| `chemicalPenetrationMm` | 0â€“2000; positive for HEAT/HESH/ATGM | Initial RHA capacity at a **100mm gun**; actual capacity is value Ã— calibre/100, bounded to 1â€“2000mm |
+| `secondPlatePenetrationFactor` | 0.01â€“1 | Lower bound of each air-gap retention curve, applied to CURRENT remaining penetration; defaults HEAT .15, HESH .10 |
+| `airGapLossPerCalibre` | 0â€“100 | Additional gap-loss sensitivity; HEAT defaults .35, HESH 12; independently configurable per profile. Zero disables extra gap loss |
+| `nativeExplosivePower` | 0â€“500; positive for HE | Reference native blast power at 100mm; scales with calibreÂ³ and is capped at 500. Not calibrated kg TNT |
+| `spallMultiplier` | 1â€“12 | HEAT/HESH fragment volume/count tuning; release reference values HEAT 1.5, HESH 8 |
+| `coneHalfAngleDegrees` | 1â€“90 | HEAT/HESH half-angle: default HEAT 8 gives 16Â° total; HESH 70 gives 140Â° |
+| `explosionScale` | 0.1â€“3 | HE/HEAT/HESH visual asset scale, also scaled with calibre; no direct damage change |
 
 Example HEAT extras, keeping all required ballistic fields:
 
@@ -127,7 +127,7 @@ At 100mm calibre, HEAT has 400mm initial capacity. The previous fixed 60mm secon
 
 For HESH start from 300, .10, 8, 70, .65 respectively. It is a broad damage proxy that still requires perforation, not real nonperforating backface scabbing. For HE use reference power 40 and visual scale 1.5. For APHE use the built-in APHE body and tune the global `apheSpallMultiplier`, `apheConeHalfAngleDegrees` and `apheExplosionScale` in the spall config. APHE does not use these per-profile chemical fields.
 
-Payload fragment mass scales with calibre³, while counts scale with calibre and stop at native 32 per burst. APHE/HESH/HEAT retain payload fragment speed even after a barely successful penetration. No payload burst is forced through an unperforated plate.
+Payload fragment mass scales with calibreÂ³, while counts scale with calibre and stop at native 32 per burst. APHE/HESH/HEAT retain payload fragment speed even after a barely successful penetration. No payload burst is forced through an unperforated plate.
 
 ## Tuning tips
 
@@ -146,16 +146,16 @@ Copy either ATGM example from [default-shells.json](default-shells.json), change
 
 | Setting | Range / default when omitted | Interaction |
 |---|---|---|
-| `referenceCalibreMm` | 10�500 / 100 | Calibre at which chemicalPenetrationMm applies; examples use 135 |
-| `flightSpeed` | 50�1000 / 200 | Maximum powered speed, m/s |
+| `referenceCalibreMm` | 10–500 / 100 | Calibre at which chemicalPenetrationMm applies; examples use 135 |
+| `flightSpeed` | 50–1000 / 200 | Maximum powered speed, m/s |
 | `launchSpeedMode` | fixed or cannon / fixed | Choose configured launch speed or native cannon muzzle velocity |
-| `launchSpeed` | 10�flightSpeed / flightSpeed | Initial speed in fixed mode; still validated if supplied in cannon mode |
-| `launchSpeedMultiplier` | 0.01�4 / 1 | In cannon mode, multiply native muzzle velocity then clamp to 10�flightSpeed |
-| `acceleration` | 0�2000 / 0 | Motor acceleration in m/s�; zero retains initial speed |
-| `motorDelay` | 0�5 / 0 | Seconds after spawn before acceleration; less than flight lifetime if acceleration > 0 |
-| `maxTurnRate` | 0�90 / 20 | Degrees/second shared by both guidance modes; diagonal keyboard commands share the limit |
-| `maximumFlightTime` | 1�60 / 25 | Seconds before missile release without additional detonation |
-| `guidanceDelay` | 0�5 / 0.25 | Delay before steering; must be less than maximumFlightTime |
+| `launchSpeed` | 10–flightSpeed / flightSpeed | Initial speed in fixed mode; still validated if supplied in cannon mode |
+| `launchSpeedMultiplier` | 0.01–4 / 1 | In cannon mode, multiply native muzzle velocity then clamp to 10–flightSpeed |
+| `acceleration` | 0–2000 / 0 | Motor acceleration in m/s²; zero retains initial speed |
+| `motorDelay` | 0–5 / 0 | Seconds after spawn before acceleration; less than flight lifetime if acceleration > 0 |
+| `maxTurnRate` | 0–90 / 20 | Degrees/second shared by both guidance modes; diagonal keyboard commands share the limit |
+| `maximumFlightTime` | 1–60 / 25 | Seconds before missile release without additional detonation |
+| `guidanceDelay` | 0–5 / 0.25 | Delay before steering; must be less than maximumFlightTime |
 | `guidanceMode` | sight, keyboard or none / sight | Reticle, WASD or straight flight |
 
 For a soft launch, add these fields inside either existing ATGM profile:
@@ -173,12 +173,12 @@ For propellant-dependent launch speed, use `"launchSpeedMode": "cannon"` and e.g
 
 ```text
 fixed launch = launchSpeed (or flightSpeed if omitted)
-cannon launch = clamp(native cannon muzzle velocity � launchSpeedMultiplier, 10, flightSpeed)
-powered speed(t) = min(flightSpeed, initial speed + acceleration � max(0, t - motorDelay))
-chemical penetration = clamp(chemicalPenetrationMm � gun calibre / referenceCalibreMm, 1, 2000)
+cannon launch = clamp(native cannon muzzle velocity × launchSpeedMultiplier, 10, flightSpeed)
+powered speed(t) = min(flightSpeed, initial speed + acceleration × max(0, t - motorDelay))
+chemical penetration = clamp(chemicalPenetrationMm × gun calibre / referenceCalibreMm, 1, 2000)
 ```
 
-Launch inherits vehicle velocity. The controller records the resulting initial world-speed magnitude, clamped to 10�flightSpeed, and applies the motor curve to that speed. Native gravity/drag can act within each physics tick; the next powered command restores the curve. This is a gameplay motor model, not thrust/mass/fuel simulation. Guidance starts independently of motor delay. Flight time with acceleration is not simply distance/cruise speed near the launcher.
+Launch inherits vehicle velocity. The controller records the resulting initial world-speed magnitude, clamped to 10–flightSpeed, and applies the motor curve to that speed. Native gravity/drag can act within each physics tick; the next powered command restores the curve. This is a gameplay motor model, not thrust/mass/fuel simulation. Guidance starts independently of motor delay. Flight time with acceleration is not simply distance/cruise speed near the launcher.
 
 Penetration does not increase with flight speed: ATGM uses its configured chemical budget and HEAT air-gap losses. Tune `chemicalPenetrationMm`, `spallMultiplier`, `coneHalfAngleDegrees` and `explosionScale` for the impact; velocityEfficiency/maximumVelocity remain validated body fields but do not control ATGM launch speed. Changing launch speed does not change the native ammunition mesh, propellant UI, storage or loading cost.
 

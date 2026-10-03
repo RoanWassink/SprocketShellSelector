@@ -2,12 +2,12 @@
 
 A vibe-coded BepInEx IL2CPP plugin that adds **APFSDS long/short rod, APHE, HE, HEAT, HESH and guided ATGM** profiles to Sprocket.
 
-Built with AI assistance. **v0.10.0 release candidate 1** adds sight-guided and keyboard-guided ATGM profiles with JSON-configurable launch speed and motor acceleration. Both guidance modes were accepted in user gameplay testing; the new motor settings have passed managed checks and still need a live smoke test. Existing shell mechanics remain unchanged.
+Built with AI assistance. **v0.10.0** adds sight-guided and keyboard-guided ATGM profiles with JSON-configurable launch speed and motor acceleration. Both guidance modes were accepted in user gameplay testing; the new motor settings were also accepted in user gameplay testing. Existing shell mechanics remain unchanged.
 
 ## Requirements
 
 - Sprocket **0.2.55.5** (Unity **6000.3.21f1**).
-- A working **Sprocket Mod Loader / BepInEx 6 IL2CPP** setup with its .NET 6 runtime—the same environment used by Hans21223's *Sprocket Quality of Life*.
+- A working **Sprocket Mod Loader / BepInEx 6 IL2CPP** setup with its .NET 6 runtimeâ€”the same environment used by Hans21223's *Sprocket Quality of Life*.
 - Quality of Life and Material Selector are optional.
 
 ## Installation
@@ -15,7 +15,7 @@ Built with AI assistance. **v0.10.0 release candidate 1** adds sight-guided and 
 1. Run the game once with the mod loader installed, then close it.
 2. Download **SprocketShellSelector.dll** from [Releases](https://github.com/RoanWassink/SprocketShellSelector/releases/latest).
 3. Put it in `Sprocket\BepInEx\plugins\`, replacing the previous shell DLL.
-4. Launch the game and choose **Shell profile → Shell type** on your cannon.
+4. Launch the game and choose **Shell profile â†’ Shell type** on your cannon.
 
 No compiling needed. Keep only one copy of this plugin. Back up your vehicle saves before experimenting. The DLL creates the default profiles itself; copying example JSON is optional.
 
@@ -31,8 +31,8 @@ Updating adds missing release presets while preserving existing profiles, with a
 | HE | Native explosion damage; larger visual explosion than APHE. |
 | HEAT | High first-plate penetration and powerful fragments in a narrow cone. |
 | HESH | Heavy, broad spall against simpler armour; less first-plate penetration than HEAT. |
-| Konkurs-like ATGM | Sight-guided gameplay proxy, chemical HEAT impact; nominal 600 mm at 135 mm calibre. |
-| MCLOS keyboard ATGM | Manually steer with WASD; tank controls blocked during the controllable missile flight. |
+| SACLOS ATGM | Sight-guided gameplay proxy, chemical HEAT impact; nominal 600 mm at 135 mm calibre. |
+| MCLOS ATGM | Manually steer with WASD; tank controls blocked during the controllable missile flight. |
 
 These are **gameplay approximations**, not physical shaped-charge, erosion or backface-scabbing simulations. All profiles scale with full gun calibre. APFSDS spall increases as remaining penetration decreases; its cone can widen by up to 15% with remaining energy. Long/short rod also differ in calculated mass/speed and a length-based efficiency/cone modifier. Native projectile paths remain in use for non-ATGM shells; ATGM flight is steered before native movement and collision processing.
 
@@ -54,14 +54,14 @@ Shell selection applies to cannons sharing a blueprint and overrides loaded AP/A
 
 Select the missile profile **on the cannon** and test in live play. Both examples are available at any calibre: chemical penetration scales from 600 mm at 135 mm; flight speed is configured separately. They reuse HEAT impact and spaced-armour mechanics.
 
-- **Konkurs-like ATGM:** steer by moving the scope or third-person reticle. Keep controlling the launching vehicle. Reloading does not disable guidance.
-- **MCLOS keyboard ATGM:** enter your preferred view before firing, then use **W/S** for up/down and **A/D** for left/right. Mouse aim does not steer it. Driving, aiming and firing commands are blocked during the controllable missile flight; controls return after impact, expiry or loss of the launcher. The tank can coast. General camera/UI processing remains available, but vehicle actions such as scope toggling are blocked.
+- **SACLOS ATGM:** steer by moving the scope or third-person reticle. Keep controlling the launching vehicle. Reloading does not disable guidance.
+- **MCLOS ATGM:** enter your preferred view before firing, then use **W/S** for up/down and **A/D** for left/right. Mouse aim does not steer it. Driving, aiming and firing commands are blocked during the controllable missile flight; controls return after impact, expiry or loss of the launcher. The tank can coast. General camera/UI processing remains available, but vehicle actions such as scope toggling are blocked.
 - Only the newest missile per vehicle receives commands. Switching vehicles stops new commands; the missile continues on its last heading. No input-action maps are permanently disabled.
-- Fresh examples launch at **50 m/s**, accelerate at **150 m/s�** after **0.15 s**, and cap at **200 m/s**. These are editable gameplay defaults, not measured Konkurs launch/motor data.
+- Fresh examples launch at **50 m/s**, accelerate at **150 m/s²** after **0.15 s**, and cap at **200 m/s**. These are editable gameplay defaults, not measured Konkurs launch/motor data.
 
 See [ATGM settings and testing](ATGM.md) and [custom shell profiles](CUSTOM-SHELLS.md). There is no target lock, fire-and-forget seeker, top attack, missile camera, new launcher mesh, smoke trail or tandem warhead. ATGM explosions are visual HEAT effects, not additional independent HE blast damage.
 
-Existing ATGM configs keep their values. Migration exposes missing motor fields with the previous constant-speed behavior (`launchSpeed = flightSpeed`, `acceleration = 0`); it does not overwrite customized profiles. To use the new soft-launch example on an existing profile, set the motor fields yourself. Original test profile IDs remain stable for vehicle saves; stock display labels lose the TEST suffix.
+Existing ATGM configs keep their values. Migration exposes missing motor fields with the previous constant-speed behavior (`launchSpeed = flightSpeed`, `acceleration = 0`); it does not overwrite customized profiles. To use the new soft-launch example on an existing profile, set the motor fields yourself. Original test profile IDs remain stable for vehicle saves; stock experimental labels are updated to HE/HEAT/HESH and SACLOS/MCLOS ATGM.
 
 ## Armour simulator
 
@@ -120,7 +120,7 @@ Select it on the cannon as well as in the simulator. Those selections are indepe
 
 Check `Sprocket\BepInEx\LogOutput.log` for `Sprocket Shell Selector`, `[Shell Selection]`, `[Payload burst]`, `[Chemical layers]`, `[Armour Simulator]` or `[APHE Effect]`.
 
-If an older build reports `Invalid APFSDS balance setting`, check every custom profile, including HEAT/HESH. All behaviors share the [ballistic validation limits](CUSTOM-SHELLS.md#ballistic-variables): `maximumVelocityFactor` must be 1–4. v0.9.8 identifies the profile, field, received value and range. Invalid configurations are preserved; correct the reported setting and restart rather than deleting your custom shells.
+If an older build reports `Invalid APFSDS balance setting`, check every custom profile, including HEAT/HESH. All behaviors share the [ballistic validation limits](CUSTOM-SHELLS.md#ballistic-variables): `maximumVelocityFactor` must be 1â€“4. v0.9.8 identifies the profile, field, received value and range. Invalid configurations are preserved; correct the reported setting and restart rather than deleting your custom shells.
 
 Include the game/loader version, profile, relevant log lines and reproduction steps. For simulator issues include calibre, penetration and a screenshot. To roll back, close the game and restore your previous DLL and configuration backup.
 

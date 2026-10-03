@@ -40,11 +40,20 @@ internal static class ReleaseProfiles
                 ["launchSpeedMultiplier"]=JsonValue.Create(flight.LaunchSpeedMultiplier),
                 ["acceleration"]=JsonValue.Create(flight.Acceleration), ["motorDelay"]=JsonValue.Create(flight.MotorDelay)})
                 if(!entry!.AsObject().ContainsKey(setting.Key)){entry[setting.Key]=setting.Value;changed=true;}
-            // Keep IDs stable for saved vehicles; only rename the original experimental labels.
-            if(profile.Id is "atgm_konkurs_test" or "atgm_mclos_test" &&
-                profile.Label is "Konkurs-like ATGM (TEST)" or "MCLOS keyboard ATGM (TEST)")
-            {entry!["label"]=profile.Label.Replace(" (TEST)","");changed=true;}
         }
+        // Rename recognized stock experimental labels only; preserve custom names and settings.
+        var labelUpdates=new Dictionary<string,(string Label,string[] Old)> {
+            ["he"]=("HE",new[]{"HE (native blast experiment)"}),
+            ["heat"]=("HEAT",new[]{"HEAT (jet proxy experiment)"}),
+            ["hesh"]=("HESH",new[]{"HESH (spall proxy experiment)"}),
+            ["atgm_konkurs_test"]=("SACLOS ATGM",new[]{"Konkurs-like ATGM","Konkurs-like ATGM (TEST)"}),
+            ["atgm_mclos_test"]=("MCLOS ATGM",new[]{"MCLOS keyboard ATGM","MCLOS keyboard ATGM (TEST)"})
+        };
+        foreach(var entry in entries)
+            if(labelUpdates.TryGetValue(entry!["id"]!.GetValue<string>(),out var update) &&
+                update.Old.Contains(entry["label"]!.GetValue<string>()) &&
+                !entries.Any(other=>string.Equals(other!["label"]!.GetValue<string>(),update.Label,StringComparison.OrdinalIgnoreCase)))
+            {entry["label"]=update.Label;changed=true;}
         if(!changed)return false;
         var json=root.ToJsonString(new JsonSerializerOptions{WriteIndented=true});
         _=ShellProfiles.Parse(json);

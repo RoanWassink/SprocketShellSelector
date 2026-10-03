@@ -29,7 +29,7 @@ public sealed class Plugin : BasePlugin
             Log.LogError($"Shell selector disabled: {ex}");
             return;
         }
-        Log.LogInfo("Sprocket Shell Selector v0.10.0-rc.1 loaded; shell and spall/APHE patches loaded.");
+        Log.LogInfo("Sprocket Shell Selector v0.10.0 loaded; shell and spall/APHE patches loaded.");
         var atgmHarmony=new Harmony("nl.roan.sprocket.shellselector.atgm");
         try
         {
