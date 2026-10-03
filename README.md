@@ -2,7 +2,7 @@
 
 A vibe-coded BepInEx IL2CPP plugin that adds **APFSDS and APHE shell profiles** to Sprocket's cannon inspector and armour penetration simulator.
 
-**Built with AI assistance.** Version **0.8.2** has been tested in-game, with 144 managed regression checks passing.
+**Built with AI assistance.** The v0.8.1 shell behaviour has been tested in-game. The v0.8.2 configuration repair passes 144 managed regression checks.
 
 ## Requirements
 
@@ -67,6 +67,32 @@ The plugin creates these files in `Sprocket\BepInEx\config`. Edit them with the 
 | `apfsdsDisableClassicNormalization` | true | Disables classical AP normalization for APFSDS |
 
 Existing shell configuration is imported when the current filenames are first created. Older fuse, spherical-burst, thickness-anchor and experimental deflection keys remain accepted for compatibility but do not control current behaviour.
+
+## FAQ
+
+### Can I edit the existing APFSDS to make a long or short rod?
+
+Yes. Close the game and edit the profile with `"id": "apfsds"` in `BepInEx/config/sprocket.shellselector.shells.json`. Back up the file first and restart after editing.
+
+`penetratorLengthInCalibres` sets rod length relative to the **full gun calibre**: a 120 mm gun with a value of 5 gives a 600 mm penetrator. Changing length changes calculated mass and can also change velocity and penetration. Longer does not automatically mean more penetration. This does not change the cannon's propellant setting or its visible ammunition model.
+
+### Can I add a second APFSDS by copying the profile?
+
+You can add another selectable ballistic profile, but in v0.8.1/v0.8.2 only the ID `apfsds` activates the dedicated APFSDS behaviour. A new ID does not inherit that behaviour just because its label says APFSDS. Each ID and label must be unique, so two entries cannot both use `apfsds`.
+
+Edit the existing profile if you want a different rod with the full APFSDS behaviour. Multiple independent APFSDS variants with that behaviour require a plugin update. See the [custom-shell guide](CUSTOM-SHELLS.md).
+
+### What changes if I copy APFSDS and only rename it?
+
+Changing only the label on the existing entry keeps its behaviour. If you add a copy, it needs a new ID too.
+
+With identical numeric settings, the copy has the same calculated projectile dimensions, mass, muzzle velocity and base penetration. Its **spall and normalization handling differ**: the dedicated APFSDS ID uses a narrow, energy-dependent cone and produces more spall as remaining penetration decreases. That balance measures penetration remaining, not simply plate thickness. A copy under another ID uses native AP spall/normalization instead and applies its `fragmentDamageMultiplier`; the dedicated APFSDS profile bypasses that damage scaling.
+
+### Do custom gun technology files affect these shells?
+
+Yes, if they change the gun's calibre, baseline muzzle velocity or native penetrator constant. Custom-shell ballistics are calculated from those gun values plus the profile settings, so the same profile can produce different penetration on different guns.
+
+The armour simulator is different: its penetration slider is manually selected and is not a prediction of your gun's calculated penetration. Compare gun output in the cannon inspector.
 
 ## Troubleshooting
 
