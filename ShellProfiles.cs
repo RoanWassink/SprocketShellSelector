@@ -5,7 +5,8 @@ namespace SprocketShellSelector;
 internal sealed record ShellProfile(string Id, string Label, DartSettings Settings,
     string Behavior = "ap", double ChemicalPenetrationMm = 0,
     double NativeExplosivePower = 0, double SpallMultiplier = 1,
-    double ConeHalfAngleDegrees = 90, double ExplosionScale = 1, double SecondPlatePenetrationFactor = .15);
+    double ConeHalfAngleDegrees = 90, double ExplosionScale = 1, double SecondPlatePenetrationFactor = .15,
+    double AirGapLossPerCalibre = .35);
 
 // Managed data only: the same validation runs before UI, previews and native shots.
 internal static class ShellProfiles
@@ -19,7 +20,7 @@ internal static class ShellProfiles
         "penetrationQuality", "fragmentDamageMultiplier"
     };
     private static readonly HashSet<string> Optional = new(StringComparer.Ordinal)
-    { "behavior", "chemicalPenetrationMm", "nativeExplosivePower", "spallMultiplier", "coneHalfAngleDegrees", "explosionScale", "secondPlatePenetrationFactor" };
+    { "behavior", "chemicalPenetrationMm", "nativeExplosivePower", "spallMultiplier", "coneHalfAngleDegrees", "explosionScale", "secondPlatePenetrationFactor", "airGapLossPerCalibre" };
 
     internal static IReadOnlyList<ShellProfile> Parse(string json)
     {
@@ -53,7 +54,7 @@ internal static class ShellProfiles
             double Option(string key,double fallback) => item.TryGetProperty(key,out var value) ? value.GetDouble() : fallback;
             var profile = new ShellProfile(id,label,settings,behavior,
                 Option("chemicalPenetrationMm",0),Option("nativeExplosivePower",0),
-                Option("spallMultiplier",1),Option("coneHalfAngleDegrees",90),Option("explosionScale",1),Option("secondPlatePenetrationFactor",behavior=="hesh"?.1:.15));
+                Option("spallMultiplier",1),Option("coneHalfAngleDegrees",90),Option("explosionScale",1),Option("secondPlatePenetrationFactor",behavior=="hesh"?.1:.15),Option("airGapLossPerCalibre",behavior=="hesh"?12:.35));
             ShellPayload.Validate(profile);
             result.Add(profile);
         }

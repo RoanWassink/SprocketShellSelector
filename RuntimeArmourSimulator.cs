@@ -12,6 +12,7 @@ internal static class RuntimeArmourSimulator
     private static readonly Dictionary<IntPtr,Choice> Choices=new();
     private static readonly Il2CppSystem.Collections.Generic.List<string> Labels=new();
     [ThreadStatic] private static ArmourOverlay? activeOverlay;
+    [ThreadStatic] internal static bool DrawingShellChoice;
     private static IReadOnlyList<ShellProfile> SimulatorProfiles => RuntimeShellSelection.Profiles.Where(p=>p.Behavior!="he").ToArray();
     internal static void Configure()
     {
@@ -41,16 +42,19 @@ internal static class RuntimeArmourSimulator
             try
             {
                 var selected=Selected(__instance.overlay);
-                ui.Dropdown("Shell type",Labels.Cast<Il2CppSystem.Collections.Generic.IReadOnlyList<string>>(),
+                var previousDrawing=DrawingShellChoice;
+                DrawingShellChoice=true;
+                try {ui.Dropdown("Shell type",Labels.Cast<Il2CppSystem.Collections.Generic.IReadOnlyList<string>>(),
                     selected==null?0:SimulatorProfiles.ToList().FindIndex(p=>p.Id==selected.Id)+1,
                     Ui.IntCallback(index=>{
                         if(index<0||index>SimulatorProfiles.Count)return;
                         Choices[__instance.overlay.Pointer]=new(__instance.overlay,index==0?ShellProfiles.Vanilla:SimulatorProfiles[index-1].Id);
                         // Redraw overlay and invalidate the pointer simulation when profile changes.
                         __instance.overlay.RedrawRequired=true;
-                    }),"Calibre is the full gun calibre. Penetration is the manually chosen RHA target, not a cannon performance prediction.");
+                    }),"Calibre is the full gun calibre. Penetration is the manually chosen RHA target, not a cannon performance prediction.");}
+                finally{DrawingShellChoice=previousDrawing;}
                 if(selected!=null)
-                    ui.InfoField($"Gun {__instance.overlay.Calibre} mm | effective {EffectivePenetration(selected,__instance.overlay):0} mm | choose firing profile separately on cannon",2);
+                    ui.InfoField("Penetration is chosen by slider; chemical profiles also obey a calibre-scaled budget. Select live shells separately on the cannon.",2);
             }
             finally{layout.EndAllDropdowns();}
         }

@@ -2,7 +2,7 @@
 
 A vibe-coded BepInEx IL2CPP plugin that adds **APFSDS long/short rod, APHE, HE, HEAT and HESH** profiles to Sprocket.
 
-Built with AI assistance. The v0.9.3 balance was accepted in user gameplay testing; spaced-armour behavior was confirmed in the simulator. v0.9.4 keeps that balance and removes the standard APFSDS preset. The release passes 209 standalone managed regression checks.
+Built with AI assistance. v0.9.7 was accepted in user gameplay/simulator testing. Log review covered 312 HEAT and 2 HESH simulations: 115 HEAT simulations produced multiple bursts; all 309 gap events matched the calculated curve within log rounding. The release passes 233 standalone managed checks.
 
 ## Requirements
 
@@ -34,9 +34,15 @@ Updating adds missing release presets while preserving existing profiles, with a
 
 These are **gameplay approximations**, not physical shaped-charge, erosion or backface-scabbing simulations. All profiles scale with full gun calibre. APFSDS spall increases as remaining penetration decreases; its cone can widen by up to 15% with remaining energy. Long/short rod also differ in calculated mass/speed and a length-based efficiency/cone modifier. Native projectile paths remain in use.
 
-APHE, HESH and HEAT produce one amplified payload burst after native perforation. Fragment mass scales with calibre cubed; count scales with calibre and is bounded to 32 per burst. Payload fragment speed does not collapse when the shell barely penetrates. HESH still needs perforation to generate spall. APHE attempts to stop the parent after its burst.
+APHE and HESH produce one amplified payload burst after native perforation. HEAT can produce concentrated spall at subsequent plates when its original jet perforates them; secondary fragments cannot trigger repeated amplified payload bursts. Fragment mass scales with calibre cubed; count scales with calibre and is bounded to 32 per burst. Payload fragment speed does not collapse when the shell barely penetrates. HESH still needs perforation to generate spall. APHE attempts to stop the parent after its burst.
 
-**Spaced armour:** HEAT/HESH lose most of their original penetrator's remaining capacity after a solid → air → solid transition. At 100mm calibre, default HEAT has 400mm initial RHA capacity, then at most 60mm; HESH has 300mm, then at most 30mm. Already-lost penetration is never restored. This is a fixed cap after a gap, not a distance-based loss. Other solid components can also trigger it. Secondary fragments retain native penetration.
+**Spaced armour:** HEAT and HESH use independent, calibre-scaled loss curves over actual air gaps. Native plate consumption happens first; each measured gap multiplies CURRENT remaining penetration, never restoring lost capacity. HEAT loss increases gradually with spacing and preceding plate LOS RHA thickness; a tiny gap (up to .1 gun calibre) adds no loss. HESH has a much steeper decoupling curve across a separated layer. Secondary fragments retain native penetration. The older fixed second-plate cap has been replaced.
+
+![HEAT air-gap curve](docs/heat-air-gap.png)
+
+![HESH air-gap curve](docs/hesh-air-gap.png)
+
+These are **calculated model curves**, not measured penetration data. See [curve equations and validation](docs/SPACED-ARMOUR.md). HESH is still a perforating proxy; true nonperforating backface scabbing is not implemented. Native blast and shaped-charge stand-off optimisation are not modeled by these curves.
 
 HE native blast power scales with calibre cubed, with an upper limit. It has no validated armour-thickness gate. Explosion visuals scale separately with calibre; default HE is larger than APHE, and HESH matches APHE's visual scale. Native HE power is **not a calibrated kg TNT value**.
 

@@ -5,7 +5,7 @@ using HarmonyLib;
 using Il2CppInterop.Runtime;
 using UnityEngine.Events;
 namespace SprocketShellSelector;
-[BepInPlugin("nl.roan.sprocket.shellselector", "Sprocket Shell Selector", "0.9.4")]
+[BepInPlugin("nl.roan.sprocket.shellselector", "Sprocket Shell Selector", "0.9.7")]
 [BepInDependency("nl.roan.sprocket.materialselector", BepInDependency.DependencyFlags.SoftDependency)]
 public sealed class Plugin : BasePlugin
 {
@@ -29,7 +29,7 @@ public sealed class Plugin : BasePlugin
             Log.LogError($"Shell selector disabled: {ex}");
             return;
         }
-        Log.LogInfo("Sprocket Shell Selector v0.9.4 loaded; shell and spall/APHE patches loaded.");
+        Log.LogInfo("Sprocket Shell Selector v0.9.7 loaded; shell and spall/APHE patches loaded.");
         var simulatorHarmony = new Harmony("nl.roan.sprocket.shellselector.simulator");
         try
         {
@@ -43,6 +43,9 @@ public sealed class Plugin : BasePlugin
             Log.LogError($"[Armour Simulator] Disabled; shell and spall/APHE patches remain active: {ex}");
         }
         var effectsHarmony=new Harmony("nl.roan.sprocket.shellselector.effects");
+        var scrollHarmony=new Harmony("nl.roan.sprocket.shellselector.simulatorscroll");
+        try{scrollHarmony.PatchAll(typeof(RuntimeSimulatorScroll));Log.LogInfo("[Simulator scroll] Native shell list scrollbar hook loaded.");}
+        catch(Exception ex){scrollHarmony.UnpatchSelf();Log.LogError($"[Simulator scroll] Optional scrollbar disabled: {ex}");}
         try
         {
             effectsHarmony.PatchAll(typeof(RuntimeShellEffects));

@@ -355,3 +355,37 @@ try{
  Check(File.ReadAllText(path)=="{}","invalid upgrade input preserved");
 }finally{Directory.Delete(upgradeDir,true);}
 Console.WriteLine($"v0.9.4 RELEASE PASS: {checks} checks.");
+var heatGap=heatPreset with{AirGapLossPerCalibre=.35,SecondPlatePenetrationFactor=.15};
+var heshGap=heatGap with{Behavior="hesh",AirGapLossPerCalibre=12,SecondPlatePenetrationFactor=.1};
+Check(ShellBalance.SpacedRetention(heatGap,100,10,0)==1,"no gap no added HEAT loss");
+Check(ShellBalance.SpacedRetention(heatGap,100,10,5)==1,"tiny gap preserves HEAT jet budget");
+Check(ShellBalance.SpacedRetention(heatGap,100,10,100)>.8,"thin skirt and modest gap cannot erase HEAT capacity");
+Check(ShellBalance.SpacedRetention(heatGap,100,50,100)<ShellBalance.SpacedRetention(heatGap,100,5,100),"thicker front plate disrupts HEAT more");
+Check(ShellBalance.SpacedRetention(heatGap,100,10,500)<ShellBalance.SpacedRetention(heatGap,100,10,100),"longer gap reduces HEAT retention");
+Check(ShellBalance.SpacedRetention(heshGap,100,10,50)<.11,"separated HESH strongly decoupled");
+Check(ShellBalance.SpacedRetention(heshGap,100,10,0)==1,"contiguous HESH has no added loss");
+Check(ShellBalance.SpacedRetention(heshGap,100,10,5)<ShellBalance.SpacedRetention(heatGap,100,10,5),"HESH more sensitive to small real gap");
+Check(Math.Abs(ShellBalance.SpacedRetention(heatGap,100,10,100)-ShellBalance.SpacedRetention(heatGap,200,20,200))<1e-10,"relative plate and gap scale with calibre");
+Check(ShellBalance.SpacedRetention(heatGap with{AirGapLossPerCalibre=0},100,10,500)==1,"per-shell zero sensitivity disables additional loss");
+var distanceLayers=new ChemicalLayers();
+Check(distanceLayers.ObserveBlock(false,1000)==null,"initial free flight excluded");
+Check(distanceLayers.ObserveBlock(true,4)==null,"first solid no degradation");
+Check(distanceLayers.ObserveBlock(true,6)==null,"contiguous solid thickness accumulates");
+Check(distanceLayers.ObserveBlock(false,20)==null && distanceLayers.ObserveBlock(false,30)==null,"gap segments accumulate without loss in air");
+var measuredGap=distanceLayers.ObserveBlock(true,40);
+Check(measuredGap is {} mg && mg.PlateRhaMm==10 && mg.GapMm==50,"next solid reports exact preceding plate and gap once");
+Check(distanceLayers.ObserveBlock(true,5)==null,"same solid never repeats previous gap penalty");
+distanceLayers.ObserveBlock(false,100);
+Check(distanceLayers.ObserveBlock(true,5) is {} nextGap && nextGap.PlateRhaMm==45 && nextGap.GapMm==100,"later gap tracked independently");
+foreach(var behavior in new[]{heatGap,heshGap}){
+ double last=1;var bounded=true;
+ for(var gap=0;gap<2000;gap++){var value=ShellBalance.SpacedRetention(behavior,100,20,gap);bounded &= value<=last && value>=behavior.SecondPlatePenetrationFactor && value<=1;last=value;}
+ Check(bounded,"gap curve monotonic bounded and cannot restore penetration");
+}
+Console.WriteLine($"v0.9.6 DISTANCE PASS: {checks} checks.");
+Check(!ShellBalance.SuppressPayloadBurst("heat",true,true),"HEAT original can spall again after a later perforation");
+Check(ShellBalance.SuppressPayloadBurst("heat",false,true),"HEAT secondary fragments do not trigger repeated payload bursts");
+Check(ShellBalance.SuppressPayloadBurst("hesh",true,true),"HESH retains single payload burst");
+Check(ShellBalance.SuppressPayloadBurst("aphe",true,true),"APHE retains single payload burst");
+Check(!ShellBalance.SuppressPayloadBurst("heat",true,false),"first HEAT burst allowed");
+Console.WriteLine($"v0.9.7 MULTIPLATE PASS: {checks} checks.");

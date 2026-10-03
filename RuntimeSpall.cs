@@ -35,23 +35,32 @@ internal static class RuntimeSpall
     [HarmonyFinalizer,HarmonyPatch(typeof(CompoundStructure),nameof(CompoundStructure.SimulateFragment))]
     private static void EndLayer(LayerScope __state){layerSimulation=__state.Simulation;layerFragment=__state.Index;}
     [HarmonyPostfix,HarmonyPatch(typeof(StructureIntersection),nameof(StructureIntersection.GetNextMaterialBlock))]
-    private static void MaterialLayer(MaterialBlock __result)
+    private static void MaterialLayer(MaterialBlock __result,
+        Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<StructureIntersection> __0,int __1,
+        Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<MaterialInfo> __5)
     {
         var sim=layerSimulation;var context=Impact;
         if(sim==null || context?.Profile is not {} profile || !__result.Valid || layerFragment<0 || layerFragment>=sim.FragmentCount)return;
         var fragment=sim.fragments[layerFragment];
         if((fragment.flags & FragmentFlag.OriginalPenetrator)==0)return;
+        var entry=__result.EnterIntersectionIndex;var exit=__result.ExitIntersectionIndex;
+        if(entry<0||exit<0||entry>=__1||exit>=__1||entry>=__0.Length||exit>=__0.Length)return;
+        var length=Math.Max(0,(__0[exit].distance-__0[entry].distance)*1000);
+        var solid=__result.MaterialIndex>=0;
+        if(solid){if(__result.MaterialIndex>=__5.Length)return;length*=Math.Max(0,__5[__result.MaterialIndex].rhaFactor);}
         if(!context.Layers.TryGetValue(sim.Pointer,out var layers))context.Layers[sim.Pointer]=layers=new();
-        if(!layers.Observe(__result.MaterialIndex>=0))return;
+        var transition=layers.ObserveBlock(solid,length);
+        if(transition is not {} gap)return;
         var constant=sim.projectileProfiles[fragment.projectileProfileIndex].penetratorConstant;
         var remaining=fragment.GetBasePenetration(constant)*1000;
         if(!float.IsFinite(remaining)||remaining<=0)return;
-        var budget=ShellBalance.SecondPlateBudget(profile,context.GunDiameter*1000,remaining);
+        var retention=ShellBalance.SpacedRetention(profile,context.GunDiameter*1000,gap.PlateRhaMm,gap.GapMm);
+        var budget=remaining*retention;
         var speed=PenetrationUtils.ComputeRequiredPenetrationSpeed(fragment.diameter*1000,fragment.mass,(float)budget,constant);
         if(!float.IsFinite(speed)||speed<=0)return;
         fragment.speed=Math.Min(fragment.speed,speed);
         sim.fragments[layerFragment]=fragment;
-        Plugin.ModLog.LogInfo($"[Chemical layers] {context.Behavior} after air gap: {remaining:0.0} -> {budget:0.0}mm RHA cap");
+        Plugin.ModLog.LogInfo($"[Chemical layers] {context.Behavior} plate={gap.PlateRhaMm:0.0}mm RHA gap={gap.GapMm:0.0}mm retention={retention:0.000}: {remaining:0.0} -> {budget:0.0}mm");
     }
     internal static void Configure()
     {
@@ -100,8 +109,9 @@ internal static class RuntimeSpall
             var context=Impact;
             if(context==null || context.Behavior is not ("apfsds" or "aphe" or "heat" or "hesh")) return true;
             if(o.parentIndex<0 || o.parentIndex>=simulation.FragmentCount) return true;
-            if(context.Behavior is "aphe" or "heat" or "hesh" && context.PayloadBursts.Contains(simulation.Pointer)) return false;
             var parent=simulation.fragments[o.parentIndex];
+            if(context.Behavior is "aphe" or "heat" or "hesh" && ShellBalance.SuppressPayloadBurst(context.Behavior,
+                (parent.flags & FragmentFlag.OriginalPenetrator)!=0,context.PayloadBursts.Contains(simulation.Pointer)))return false;
             if((parent.flags & FragmentFlag.OriginalPenetrator)==0 || parent.materialIndex<0) return true;
             var s=Settings;
             var aphe=context.Behavior is "aphe" or "heat" or "hesh";

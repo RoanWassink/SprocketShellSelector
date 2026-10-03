@@ -9,8 +9,20 @@ internal static class ShellBalance
         return calibreMm/100;
     }
     internal static double ChemicalPenetration(ShellProfile p,double calibreMm) => Math.Clamp(p.ChemicalPenetrationMm*Ratio(calibreMm),1,2000);
+    internal static bool SuppressPayloadBurst(string behavior,bool original,bool alreadyBurst) => alreadyBurst && (behavior!="heat" || !original);
     internal static double BlastPower(ShellProfile p,double calibreMm) => Math.Clamp(p.NativeExplosivePower*Math.Pow(Ratio(calibreMm),3),.1,500);
     internal static double SecondPlateBudget(ShellProfile p,double calibreMm,double remainingMm) => Math.Min(remainingMm,ChemicalPenetration(p,calibreMm)*p.SecondPlatePenetrationFactor);
+    internal static double SpacedRetention(ShellProfile p,double calibreMm,double plateRhaMm,double gapMm)
+    {
+        _=Ratio(calibreMm);
+        if(!double.IsFinite(plateRhaMm)||plateRhaMm<0||!double.IsFinite(gapMm)||gapMm<0)throw new ArgumentOutOfRangeException(nameof(gapMm));
+        var gap=gapMm/calibreMm;
+        // Distinct gameplay curves: HEAT jet disruption versus HESH decoupling.
+        var exponent=p.Behavior=="heat"
+            ? p.AirGapLossPerCalibre*Math.Max(0,gap-.1)*(.25+.75*(1-Math.Exp(-plateRhaMm/(calibreMm*.25))))
+            : p.Behavior=="hesh" ? p.AirGapLossPerCalibre*gap : 0;
+        return p.SecondPlatePenetrationFactor+(1-p.SecondPlatePenetrationFactor)*Math.Exp(-exponent);
+    }
     internal static int FragmentTarget(string behavior,double calibreMm) => (int)Math.Clamp(Math.Round((behavior=="heat"?40:48)*Math.Pow(Ratio(calibreMm),1.5)),4,32);
     internal static double FragmentVolume(string behavior,double calibreMm)
     {
@@ -34,6 +46,17 @@ internal static class ShellBalance
 // Only a solid -> air -> solid transition counts as spaced armour.
 internal sealed class ChemicalLayers
 {
+    private double previousPlate, pendingGap;
+    private bool havePlate, gapPending;
+    internal (double PlateRhaMm,double GapMm)? ObserveBlock(bool solid,double lengthMm)
+    {
+        if(!double.IsFinite(lengthMm)||lengthMm<0)return null;
+        if(!solid){if(havePlate){pendingGap+=lengthMm;gapPending=true;}return null;}
+        var result=havePlate && gapPending && pendingGap>0 ? (previousPlate,pendingGap) : ((double,double)?)null;
+        previousPlate=gapPending?lengthMm:previousPlate+lengthMm;
+        pendingGap=0;gapPending=false;havePlate=true;
+        return result;
+    }
     private bool seenSolid, seenGap;
     internal bool Degraded { get; private set; }
     internal bool Observe(bool solid)
