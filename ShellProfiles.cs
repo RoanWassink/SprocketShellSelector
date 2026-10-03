@@ -2,7 +2,10 @@ using System.Text.Json;
 
 namespace SprocketShellSelector;
 
-internal sealed record ShellProfile(string Id, string Label, DartSettings Settings);
+internal sealed record ShellProfile(string Id, string Label, DartSettings Settings,
+    string Behavior = "ap", double ChemicalPenetrationMm = 0,
+    double NativeExplosivePower = 0, double SpallMultiplier = 1,
+    double ConeHalfAngleDegrees = 90, double ExplosionScale = 1, double SecondPlatePenetrationFactor = .15);
 
 // Managed data only: the same validation runs before UI, previews and native shots.
 internal static class ShellProfiles
@@ -15,6 +18,8 @@ internal static class ShellProfiles
         "velocityEfficiency", "velocityMultiplier", "maximumVelocityFactor", "maximumVelocity",
         "penetrationQuality", "fragmentDamageMultiplier"
     };
+    private static readonly HashSet<string> Optional = new(StringComparer.Ordinal)
+    { "behavior", "chemicalPenetrationMm", "nativeExplosivePower", "spallMultiplier", "coneHalfAngleDegrees", "explosionScale", "secondPlatePenetrationFactor" };
 
     internal static IReadOnlyList<ShellProfile> Parse(string json)
     {
@@ -31,7 +36,7 @@ internal static class ShellProfiles
         var labels = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Vanilla ammunition" };
         foreach (var item in profiles.EnumerateArray())
         {
-            CheckFields(item, Fields);
+            CheckFields(item, Fields, Optional);
             var id = item.GetProperty("id").GetString() ?? "";
             var label = item.GetProperty("label").GetString() ?? "";
             if (id.Length is < 1 or > 40 || id.Any(c => !(c is >= 'a' and <= 'z' or >= '0' and <= '9' or '_' or '-')) || !ids.Add(id))
@@ -44,19 +49,25 @@ internal static class ShellProfiles
                 Number("maximumVelocity"), Number("penetrationQuality"), Number("fragmentDamageMultiplier"),
                 Number("velocityMultiplier"));
             _ = ShellBallistics.Calculate(120, 800, 1800, settings);
-            result.Add(new(id, label, settings));
+            var behavior = item.TryGetProperty("behavior",out var mode) ? mode.GetString() ?? "" : id is "apfsds" or "aphe" ? id : "ap";
+            double Option(string key,double fallback) => item.TryGetProperty(key,out var value) ? value.GetDouble() : fallback;
+            var profile = new ShellProfile(id,label,settings,behavior,
+                Option("chemicalPenetrationMm",0),Option("nativeExplosivePower",0),
+                Option("spallMultiplier",1),Option("coneHalfAngleDegrees",90),Option("explosionScale",1),Option("secondPlatePenetrationFactor",behavior=="hesh"?.1:.15));
+            ShellPayload.Validate(profile);
+            result.Add(profile);
         }
         return result;
     }
 
-    private static void CheckFields(JsonElement item, HashSet<string> allowed)
+    private static void CheckFields(JsonElement item, HashSet<string> allowed, HashSet<string>? optional = null)
     {
         if (item.ValueKind != JsonValueKind.Object) throw new FormatException("Expected a JSON object.");
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var property in item.EnumerateObject())
-            if (!allowed.Contains(property.Name) || !seen.Add(property.Name))
+            if ((!allowed.Contains(property.Name) && optional?.Contains(property.Name) != true) || !seen.Add(property.Name))
                 throw new FormatException($"Unknown or duplicate shell setting: {property.Name}.");
-        if (seen.Count != allowed.Count) throw new FormatException("Missing required shell profile settings.");
+        if (!allowed.IsSubsetOf(seen)) throw new FormatException("Missing required shell profile settings.");
     }
 
     internal static string CreateDefault(DartSettings settings) => JsonSerializer.Serialize(new
@@ -88,7 +99,7 @@ internal static class ShellProfiles
     internal static string Resolve(string? id, bool legacyEnabled, IReadOnlyList<ShellProfile> profiles)
     {
         var requested = id ?? (legacyEnabled ? LegacyDart : Vanilla);
+        if(requested==LegacyDart && !profiles.Any(p=>p.Id==LegacyDart) && profiles.Any(p=>p.Id=="apfsds_long"))return "apfsds_long";
         return requested == Vanilla || profiles.Any(p => p.Id == requested) ? requested : Vanilla;
     }
 }
-

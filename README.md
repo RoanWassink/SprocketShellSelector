@@ -1,8 +1,8 @@
 # Sprocket Shell Selector
 
-A vibe-coded BepInEx IL2CPP plugin that adds **APFSDS and APHE shell profiles** to Sprocket's cannon inspector and armour penetration simulator.
+A vibe-coded BepInEx IL2CPP plugin that adds **APFSDS long/short rod, APHE, HE, HEAT and HESH** profiles to Sprocket.
 
-**Built with AI assistance.** The v0.8.1 shell behaviour has been tested in-game. The v0.8.2 configuration repair passes 144 managed regression checks.
+Built with AI assistance. The v0.9.3 balance was accepted in user gameplay testing; spaced-armour behavior was confirmed in the simulator. v0.9.4 keeps that balance and removes the standard APFSDS preset. The release passes 209 standalone managed regression checks.
 
 ## Requirements
 
@@ -10,113 +10,106 @@ A vibe-coded BepInEx IL2CPP plugin that adds **APFSDS and APHE shell profiles** 
 - A working **Sprocket Mod Loader / BepInEx 6 IL2CPP** setup with its .NET 6 runtime—the same environment used by Hans21223's *Sprocket Quality of Life*.
 - Quality of Life and Material Selector are optional.
 
-## Missing APHE after installing v0.8.1?
-
-Close the game and replace the shell DLL with v0.8.2, then restart. It adds missing APHE to the active `BepInEx/config/sprocket.shellselector.shells.json` while preserving existing profiles, and saves a `.pre-aphe-backup` beside the file. Fresh installs include both profiles. With 16 custom profiles, free one slot first. Invalid JSON is reported rather than overwritten.
-
 ## Installation
 
 1. Run the game once with the mod loader installed, then close it.
-2. Download **SprocketShellSelector.dll** from this repository's [Releases](https://github.com/RoanWassink/SprocketShellSelector/releases) section.
-3. Drop the DLL into:
+2. Download **SprocketShellSelector.dll** from [Releases](https://github.com/RoanWassink/SprocketShellSelector/releases/latest).
+3. Put it in `Sprocket\BepInEx\plugins\`, replacing the previous shell DLL.
+4. Launch the game and choose **Shell profile → Shell type** on your cannon.
 
-   ```text
-   Sprocket\BepInEx\plugins\
-   ```
+No compiling needed. Keep only one copy of this plugin. Back up your vehicle saves before experimenting. The DLL creates the default profiles itself; copying example JSON is optional.
 
-4. Launch the game and choose a shell profile in the cannon inspector or armour simulator.
-
-No compiling needed. Back up your vehicle saves and existing configuration before updating. Install only one copy of the shell plugin.
+Updating adds missing release presets while preserving existing profiles, with a `.pre-v094-backup` before configuration changes. The old stock `APFSDS (beta)` / `APFSDS standard` entry is removed; saved selections using that ID fall back to long rod. A renamed custom entry is retained. Existing profiles with a release preset ID keep their values; at the 16-profile limit, free slots to add missing examples. Invalid JSON is reported rather than overwritten.
 
 ## Shell profiles
 
-**APFSDS** calculates a subcalibre rod from the full gun calibre, rod length, density and ballistic constants. Extra penetration comes with a narrower spall cone. Spall increases as remaining penetration decreases, so a shot with abundant penetration left produces less spall. Cone width can increase by up to 15% with remaining kinetic energy. Classical AP normalization can be disabled for APFSDS; projectile trajectory and ricochet handling otherwise remain native.
+| Type | Role |
+|---|---|
+| APFSDS long rod | Higher rod penetration efficiency, narrower spall cone. |
+| APFSDS short rod | Lighter rod, lower penetration efficiency, wider cone. |
+| APHE | Reduced AP penetration with a very heavy, broad internal fragment burst. |
+| HE | Native explosion damage; larger visual explosion than APHE. |
+| HEAT | High first-plate penetration and powerful fragments in a narrow cone. |
+| HESH | Heavy, broad spall against simpler armour; less first-plate penetration than HEAT. |
 
-**APHE** combines reduced-penetration AP ballistics with much stronger native spall. The default is a **180-degree forward cone**, with four times the spall volume and fragment-count input. The native limit of 32 fragments per burst still applies. Successful live impacts that produce spall request a configurable native explosion visual. Damage comes from spall; the visual adds no blast damage and does not use the native HE tooltip's kg value.
+These are **gameplay approximations**, not physical shaped-charge, erosion or backface-scabbing simulations. All profiles scale with full gun calibre. APFSDS spall increases as remaining penetration decreases; its cone can widen by up to 15% with remaining energy. Long/short rod also differ in calculated mass/speed and a length-based efficiency/cone modifier. Native projectile paths remain in use.
 
-These are gameplay approximations. Shell selection applies to cannons sharing a blueprint and overrides loaded AP/APHE rounds. Ammunition storage, loading and costs remain vanilla.
+APHE, HESH and HEAT produce one amplified payload burst after native perforation. Fragment mass scales with calibre cubed; count scales with calibre and is bounded to 32 per burst. Payload fragment speed does not collapse when the shell barely penetrates. HESH still needs perforation to generate spall. APHE attempts to stop the parent after its burst.
+
+**Spaced armour:** HEAT/HESH lose most of their original penetrator's remaining capacity after a solid → air → solid transition. At 100mm calibre, default HEAT has 400mm initial RHA capacity, then at most 60mm; HESH has 300mm, then at most 30mm. Already-lost penetration is never restored. This is a fixed cap after a gap, not a distance-based loss. Other solid components can also trigger it. Secondary fragments retain native penetration.
+
+HE native blast power scales with calibre cubed, with an upper limit. It has no validated armour-thickness gate. Explosion visuals scale separately with calibre; default HE is larger than APHE, and HESH matches APHE's visual scale. Native HE power is **not a calibrated kg TNT value**.
+
+Shell selection applies to cannons sharing a blueprint and overrides loaded AP/APHE rounds. Ammunition storage, loading and costs remain vanilla.
 
 ## Armour simulator
 
-Choose a profile under **Simulator shell profile**. Calibre always means the full gun calibre, including for APFSDS. The penetration slider extends to **2000 mm** and represents the penetration you select manually, rather than a prediction of your cannon's performance.
+Choose a profile under **Simulator shell profile**. This does not change the live shell selected on your cannon.
 
-The detailed simulation uses the selected profile's geometry and mass. The native colour overlay uses a simpler calibre approximation. Live explosion effects are not shown in the simulator.
+Calibre means full gun calibre, including for APFSDS. The penetration slider extends to **2000mm** and is manually selected, not a prediction of your cannon's performance. HEAT/HESH use the lower of the slider and their calibre-scaled chemical penetration budget. The native colour overlay is a simpler approximation of the detailed simulation.
+
+HE is live-firing only and omitted from the simulator list. Explosion visuals are live-only.
 
 ## Custom shells
 
-See [Making your own shell profiles](CUSTOM-SHELLS.md) for a valid JSON example, supported ranges, how geometry affects mass and speed, and the v0.8.1 limits on custom APFSDS/APHE behaviour.
+See [Making your own shell profiles](CUSTOM-SHELLS.md). **Any unique ID can now use `"behavior": "apfsds"`** and receive the full rod behavior. The same applies to APHE, HE, HEAT and HESH. Copy the long/short rod examples to create your own rods.
 
 ## Configuration
 
-The plugin creates these files in `Sprocket\BepInEx\config`. Edit them with the game closed, then restart:
+Edit with the game closed, then restart:
 
-- `sprocket.shellselector.shells.json`: shell geometry, density, velocity and penetration constants.
-- `sprocket.shellselector.spall.json`: spall balance, cone width and APHE explosion visuals.
+- `Sprocket\BepInEx\config\sprocket.shellselector.shells.json`: profiles, ballistics and payload settings.
+- `Sprocket\BepInEx\config\sprocket.shellselector.spall.json`: global APFSDS/APHE spall and APHE visuals.
 
-| Setting | Default | Effect |
+| Global setting | Default | Effect |
 |---|---|---|
-| `apheSpallMultiplier` | 4 | Multiplies native APHE spall volume/count inputs |
-| `apheConeHalfAngleDegrees` | 90 | Half-angle; 90 produces a 180-degree forward cone |
-| `apheExplosionEffect` | true | Enables the live explosion visual |
-| `apheExplosionScale` | 0.65 | Scales native explosion asset size limits |
-| `coneMultiplier` | 0.3 | Base APFSDS spall spread multiplier |
-| `coneEnergyWidening` | 0.15 | Maximum relative cone widening with remaining energy |
-| `thinRatio` | 0.08 | APFSDS spall ratio with abundant penetration remaining |
-| `thickRatio` | 1.25 | APFSDS spall ratio as penetration is exhausted |
-| `remainingPenetrationExponent` | 1 | Shapes the transition between those ratios |
-| `apfsdsDisableClassicNormalization` | true | Disables classical AP normalization for APFSDS |
+| `apheSpallMultiplier` | 4 | APHE payload volume/count tuning relative to the release baseline |
+| `apheConeHalfAngleDegrees` | 90 | 180-degree full forward cone |
+| `apheExplosionEffect` | true | Live explosion visual enabled |
+| `apheExplosionScale` | 0.65 | APHE visual asset scale |
+| `coneMultiplier` | 0.3 | Base APFSDS native spread multiplier |
+| `coneEnergyWidening` | 0.15 | Maximum extra APFSDS spread with remaining energy |
+| `thinRatio` | 0.08 | APFSDS spall ratio with abundant penetration left |
+| `thickRatio` | 1.25 | APFSDS ratio as penetration is exhausted |
+| `remainingPenetrationExponent` | 1 | Shapes that transition |
+| `apfsdsDisableClassicNormalization` | true | Disables classical AP normalization for rods |
 
-Existing shell configuration is imported when the current filenames are first created. Older fuse, spherical-burst, thickness-anchor and experimental deflection keys remain accepted for compatibility but do not control current behaviour.
+Older spherical-burst, fuse and custom-deflection settings remain accepted for compatibility but do not control current behavior.
 
 ## FAQ
 
-### Can I edit the existing APFSDS to make a long or short rod?
+### Can I copy APFSDS to make more rods?
 
-Yes. Close the game and edit the profile with `"id": "apfsds"` in `BepInEx/config/sprocket.shellselector.shells.json`. Back up the file first and restart after editing.
+Yes. Copy either rod, use a unique ID/label, and keep `"behavior": "apfsds"`. Unlike v0.8.2, the ID no longer determines the special behavior. Changing only the name does not change performance. Geometry, ballistic and behavior settings do.
 
-`penetratorLengthInCalibres` sets rod length relative to the **full gun calibre**: a 120 mm gun with a value of 5 gives a 600 mm penetrator. Changing length changes calculated mass and can also change velocity and penetration. Longer does not automatically mean more penetration. This does not change the cannon's propellant setting or its visible ammunition model.
+### What does penetratorLengthInCalibres do?
 
-### Can I add a second APFSDS by copying the profile?
+It sets calculated rod length relative to full gun calibre. A 120mm gun with 5 gives a 600mm rod. Length changes mass and speed; APFSDS also uses `sqrt(length/5)` as a penetration-quality modifier and a length-dependent cone modifier. It does not change the cannon's propellant setting or visible ammunition model. Longer does not guarantee better penetration after all speed/mass limits.
 
-You can add another selectable ballistic profile, but in v0.8.1/v0.8.2 only the ID `apfsds` activates the dedicated APFSDS behaviour. A new ID does not inherit that behaviour just because its label says APFSDS. Each ID and label must be unique, so two entries cannot both use `apfsds`.
+### Do custom gun technology files affect ammunition?
 
-Edit the existing profile if you want a different rod with the full APFSDS behaviour. Multiple independent APFSDS variants with that behaviour require a plugin update. See the [custom-shell guide](CUSTOM-SHELLS.md).
+Yes, if they change calibre, baseline muzzle speed or native penetrator constant. These feed the profile calculation. Chemical penetration is instead defined by the profile's calibre-scaled budget. The simulator slider is independent of live cannon output.
 
-### What changes if I copy APFSDS and only rename it?
+### Why is HESH missing in live firing?
 
-Changing only the label on the existing entry keeps its behaviour. If you add a copy, it needs a new ID too.
-
-With identical numeric settings, the copy has the same calculated projectile dimensions, mass, muzzle velocity and base penetration. Its **spall and normalization handling differ**: the dedicated APFSDS ID uses a narrow, energy-dependent cone and produces more spall as remaining penetration decreases. That balance measures penetration remaining, not simply plate thickness. A copy under another ID uses native AP spall/normalization instead and applies its `fragmentDamageMultiplier`; the dedicated APFSDS profile bypasses that damage scaling.
-
-### Do custom gun technology files affect these shells?
-
-Yes, if they change the gun's calibre, baseline muzzle velocity or native penetrator constant. Custom-shell ballistics are calculated from those gun values plus the profile settings, so the same profile can produce different penetration on different guns.
-
-The armour simulator is different: its penetration slider is manually selected and is not a prediction of your gun's calculated penetration. Compare gun output in the cannon inspector.
+Select it on the cannon as well as in the simulator. Those selections are independent. Check `[Shell Selection]` and firing messages in the log.
 
 ## Troubleshooting
 
-Check `Sprocket\BepInEx\LogOutput.log` for messages containing `Sprocket Shell Selector`, `[Armour Simulator]` or `[APHE Effect]`.
+Check `Sprocket\BepInEx\LogOutput.log` for `Sprocket Shell Selector`, `[Shell Selection]`, `[Payload burst]`, `[Chemical layers]`, `[Armour Simulator]` or `[APHE Effect]`.
 
-When reporting an issue, include your game/mod-loader version, selected shell profile, what you did and relevant log lines. For simulator issues, include calibre, penetration and a screenshot of the trajectory.
-
-To roll back, close the game and restore your previous shell DLL and configuration backup.
+Include the game/loader version, profile, relevant log lines and reproduction steps. For simulator issues include calibre, penetration and a screenshot. To roll back, close the game and restore your previous DLL and configuration backup.
 
 ## Building from source
 
-For contributors: install **.NET SDK 8** and start the game once with a working mod loader so `BepInEx\interop` exists.
+Install **.NET SDK 8** and start the working mod loader once so `BepInEx\interop` exists:
 
 ```powershell
 dotnet build -c Release -p:GameDir="C:\Program Files (x86)\Steam\steamapps\common\Sprocket"
+dotnet run --project tests/ShellSelector.Tests.csproj -c Release -- default-shells.json
 ```
 
-The output is `bin\Release\net6.0\SprocketShellSelector.dll`. Game and loader assemblies are referenced locally and are not included here.
-
-Run the independent regression checks with:
-
-```powershell
-dotnet run --project tests/ShellSelector.Tests.csproj -c Release
-```
+Output: `bin\Release\net6.0\SprocketShellSelector.dll`. Game/loader assemblies are referenced locally and are not distributed.
 
 ## Credits
 
@@ -124,8 +117,4 @@ Created by RoanWassink with AI assistance. The native inspector integration foll
 
 ## License
 
-[MIT](LICENSE). The license applies to this plugin's code; game and loader assemblies are not distributed with it.
-
-## Donations
-If you want to help me pay for ChatGPT to keep reverse engineering sprocket you can donate something, or not!
-https://www.paypal.com/donate/?hosted_button_id=7PE3SDBETXFQ6
+[MIT](LICENSE), covering this plugin's code.

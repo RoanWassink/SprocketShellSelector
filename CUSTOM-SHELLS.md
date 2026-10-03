@@ -1,97 +1,125 @@
 # Making your own shell profiles
 
-This guide describes **v0.8.1**. Profiles change calculated projectile geometry and ballistics; they do not change the cannon's propellant setting or create a new visible ammunition model.
+This guide describes **v0.9.4**. Profiles do not change the cannon's propellant setting or visible ammunition model.
 
-## Add a profile
+## Add a shell
 
 1. Close Sprocket and back up `BepInEx/config/sprocket.shellselector.shells.json`.
-2. Duplicate an object **inside its existing `profiles` array**.
-3. Give the copy a unique `id` and `label`, keeping every setting below.
-4. Separate objects with commas, save, and restart. Select your new profile in the cannon inspector or armour simulator.
+2. Copy an object inside its `profiles` array.
+3. Give it a unique `id` and `label`. Set `behavior` to the shell mechanics you want.
+4. Save valid JSON, restart, and select it on the cannon. The simulator has its own separate selection.
 
-Example object to add (not a replacement for the whole file):
+Use `{"schemaVersion": 1, "profiles": [ ... ]}`. Separate objects with commas, with no trailing commas or comments. Up to 16 profiles; IDs use lowercase letters, digits, `_`, `-` (1–40 characters). Labels are unique ignoring case (1–80 characters). `vanilla` / `Vanilla ammunition` are reserved. Unknown/duplicate keys or invalid values reject the file.
+
+## Copyable APFSDS example
+
+Add this object to the existing array:
 
 ```json
 {
-  "id": "custom_dart",
-  "label": "Custom dart",
+  "id": "my_long_rod",
+  "label": "My long rod",
+  "behavior": "apfsds",
   "penetratorDiameterFactor": 0.22,
-  "penetratorLengthInCalibres": 5,
+  "penetratorLengthInCalibres": 6,
   "penetratorDensity": 17500,
   "velocityEfficiency": 0.85,
   "velocityMultiplier": 1,
   "maximumVelocityFactor": 2.2,
   "maximumVelocity": 2200,
-  "penetrationQuality": 0.6,
+  "penetrationQuality": 0.45,
   "fragmentDamageMultiplier": 0.5
 }
 ```
 
-The file keeps this structure: `{"schemaVersion": 1, "profiles": [ ... ]}`. Use `}, {` between entries; no trailing comma or JSON comments. Up to 16 profiles are supported. IDs use lowercase letters, digits, `_` and `-` (1–40 characters). Labels must be unique too, ignoring capitalization (1–80 characters). `vanilla` and `Vanilla ammunition` are reserved. Unknown fields, missing fields, duplicate IDs/labels and invalid numbers cause configuration rejection.
+**`behavior`, not `id` or `label`, activates APFSDS mechanics.** This copy gets the narrow rod cone, remaining-penetration spall, length modifiers and optional suppression of classic AP normalization. There is no need to use the old `apfsds` ID. Copy short rod with length 3 for a lighter starting point. A renamed copy with identical settings has identical calculated performance.
 
-**Important:** In v0.8.1, the special APFSDS spall/normalization behaviour is tied to `id: "apfsds"`, and APHE spall/explosion behaviour to `id: "aphe"`. A new ID gets custom AP-based ballistics, not those special behaviours. To strengthen the existing APFSDS while retaining its behaviour, edit that profile instead. Two independently selectable APFSDS variants with the same special behaviour need a plugin update. Do not duplicate the same ID.
+## Choose mechanics
 
-## What the settings do
-
-All numeric ranges below are inclusive. Calibre means the **full gun calibre**, not the dart diameter.
-
-| Setting | Allowed range | Meaning and interaction |
+| `behavior` | Mechanics | Payload settings |
 |---|---|---|
-| `penetratorDiameterFactor` | 0.05–0.9 | Projectile diameter / gun calibre. Diameter affects penetration and cylinder mass; mass increases with diameter squared. |
-| `penetratorLengthInCalibres` | 0.5–10 | Length / gun calibre. A 125 mm gun with 5 gives a 625 mm rod. Longer rods weigh more and can reduce calculated speed. |
-| `penetratorDensity` | 1000–25000 | kg/m³. Higher density increases mass without changing dimensions. |
-| `velocityEfficiency` | 0.1–2 | Multiplies the mass-based velocity factor, before limits. |
-| `velocityMultiplier` | 0.1–4 | Additional speed tuning factor; multiplies efficiency before limits. |
-| `maximumVelocityFactor` | 1–4 | Maximum speed factor relative to the cannon's vanilla muzzle velocity. |
-| `maximumVelocity` | 100–5000 | Absolute muzzle-speed cap in m/s, applied after the factor limit. |
-| `penetrationQuality` | 0.1–4 | Higher values improve penetration at equal diameter, mass and speed, by adjusting the native penetrator constant. Does not change mass or speed. |
-| `fragmentDamageMultiplier` | 0.01–1 | Damage scaling for new/custom IDs. Built-in `apfsds` and `aphe` bypass this scaling and use their dedicated spall handling. This does not control fragment count or cone width. |
+| `ap` | Custom AP ballistics and native spall | No extra fields required |
+| `apfsds` | Rod ballistics, narrow energy-dependent cone, more spall as penetration is spent | No extra fields required |
+| `aphe` | AP ballistics with a heavy broad payload burst after perforation | Global APHE spall/visual settings |
+| `he` | Native impact blast | Positive `nativeExplosivePower`; `explosionScale` |
+| `heat` | High chemical first-plate budget, concentrated spall, spaced-armour cap | Positive `chemicalPenetrationMm`, `secondPlatePenetrationFactor`, `spallMultiplier`, `coneHalfAngleDegrees`, `explosionScale` |
+| `hesh` | Heavy broad spall, lower chemical budget, spaced-armour cap | Same fields as HEAT |
 
-## How the variables interact
+All ten numeric ballistic fields in the example remain required for every behavior. Start from the corresponding built-in example in [default-shells.json](default-shells.json), rather than changing only a label. If `behavior` is absent, legacy IDs `apfsds` and `aphe` infer those behaviors; all other IDs infer `ap`. New custom shells should always specify it.
 
-The plugin first calculates a cylindrical projectile:
+## Ballistic variables
 
-```text
-diameter = gun calibre in metres × penetratorDiameterFactor
-length   = gun calibre in metres × penetratorLengthInCalibres
-mass     = π × diameter² / 4 × length × penetratorDensity
-```
+Calibre is full gun calibre. Ranges are inclusive.
 
-Doubling length or density doubles mass. Doubling diameter multiplies mass by four. Length is passed into the native projectile definition and affects mass; this is still an AP-based approximation, not a dedicated long-rod erosion model.
-
-Speed then follows:
-
-```text
-raw factor = sqrt(vanilla reference mass / custom mass)
-             × velocityEfficiency × velocityMultiplier
-factor     = clamp(raw factor, 1, maximumVelocityFactor)
-speed      = min(vanilla muzzle velocity × factor, maximumVelocity)
-```
-
-The reference mass is `1.59e-5 × calibreMm³`. Cannon/propellant changes still affect the baseline vanilla muzzle velocity.
-
-A heavier rod can slow down, while a lighter one can speed up. The factor cannot fall below 1, so lowering efficiency or multiplier may stop having an effect at that floor. The absolute speed cap can still put speed below vanilla. Raising speed settings does nothing once either upper limit is reached.
-
-The native penetration calculation uses diameter, mass, speed and a modified penetrator constant:
+| Setting | Range | Interaction |
+|---|---|---|
+| `penetratorDiameterFactor` | 0.05–0.9 | Projectile diameter / gun calibre; mass scales with diameter squared |
+| `penetratorLengthInCalibres` | 0.5–10 | Length / full gun calibre; mass scales with length |
+| `penetratorDensity` | 1000–25000 | kg/m³; mass scales with density |
+| `velocityEfficiency` | 0.1–2 | Multiplies mass-based speed factor |
+| `velocityMultiplier` | 0.1–4 | Further speed tuning before limits |
+| `maximumVelocityFactor` | 1–4 | Maximum multiple of vanilla muzzle speed |
+| `maximumVelocity` | 100–5000 | Final absolute speed cap in m/s |
+| `penetrationQuality` | 0.1–4 | Higher improves penetration via native constant; no direct speed change |
+| `fragmentDamageMultiplier` | 0.01–1 | Health-damage scaling for `ap`; APFSDS/APHE/HEAT/HESH use dedicated damage handling instead |
 
 ```text
-K = clamp(round(vanilla K / penetrationQuality^(1 / 1.43)), 1, 65535)
+diameter = calibreMetres × diameterFactor
+length   = calibreMetres × lengthInCalibres
+mass     = π/4 × diameter² × length × density
+raw speed factor = sqrt((1.59e-5 × calibreMm³) / mass)
+                   × velocityEfficiency × velocityMultiplier
+speed = min(vanillaSpeed × clamp(raw factor, 1, maximumVelocityFactor),
+            maximumVelocity)
 ```
 
-Higher quality lowers K and improves penetration. Rounding and limits mean the change is not perfectly continuous. Changing dimensions also changes mass and potentially speed, so a longer/heavier rod does **not** guarantee higher penetration. Check the resulting mass, speed and base RHA penetration in the cannon inspector.
+Doubling rod length doubles mass. Doubling diameter quadruples mass. A heavier rod can slow down; a lighter one can speed up. The speed-factor floor is 1, so lowering efficiency eventually stops reducing speed; the absolute cap can still put speed below vanilla. Increasing speed settings has no effect once an upper limit is reached.
 
-## Practical tuning
+APFSDS also applies:
 
-- **More penetration, same geometry:** increase `penetrationQuality` gradually, for example from 0.5 to 0.6. Keep the `apfsds` ID if you want its special behaviour.
-- **More speed:** increase `velocityMultiplier` or `velocityEfficiency`, then check whether the speed caps are already active. These two settings multiply together.
-- **Longer/heavier projectile:** increase length or density, then inspect the new velocity and penetration rather than assuming an improvement.
-- **Different spall or APHE visual size:** edit `sprocket.shellselector.spall.json`; those settings are separate from the shell-profile geometry. See the [README configuration table](README.md#configuration).
+```text
+effective quality = clamp(penetrationQuality × sqrt(lengthInCalibres/5), 0.1, 4)
+rod cone modifier = clamp(1 + (5-lengthInCalibres) × 0.06, 0.7, 1.25)
+K = clamp(round(vanillaK / effectiveQuality^(1/1.43)), 1, 65535)
+```
 
-Change one variable at a time and compare the same gun, target and impact angle. These settings are gameplay approximations rather than a way to predict real ammunition performance.
+Other behaviors use the configured quality directly. More quality means lower K and better native penetration. Longer rods gain efficiency and a narrower cone, but their mass/speed change still matters. Check resulting mass, velocity and base penetration on the cannon. These formulas are gameplay approximations, not a long-rod erosion model.
 
-## Simulator and troubleshooting
+## Explosive and chemical variables
 
-The simulator's penetration slider is **manual**. Choosing 500 mm sets the simulated penetration to 500 mm using a calculated equivalent speed; it does not display your cannon's newly calculated penetration. Use the cannon inspector to compare ballistic output, then use the simulator to explore penetration/spall at chosen values and live shots to verify gameplay.
+| Setting | Range | Meaning |
+|---|---|---|
+| `chemicalPenetrationMm` | 0–2000; positive for HEAT/HESH | Initial RHA capacity at a **100mm gun**; actual capacity is value × calibre/100, bounded to 1–2000mm |
+| `secondPlatePenetrationFactor` | 0.01–1 | Original penetrator cap after solid → air → solid, relative to initial configured capacity; defaults HEAT .15, HESH .10 |
+| `nativeExplosivePower` | 0–500; positive for HE | Reference native blast power at 100mm; scales with calibre³ and is capped at 500. Not calibrated kg TNT |
+| `spallMultiplier` | 1–12 | HEAT/HESH fragment volume/count tuning; release reference values HEAT 1.5, HESH 8 |
+| `coneHalfAngleDegrees` | 1–90 | HEAT/HESH half-angle: default HEAT 8 gives 16° total; HESH 70 gives 140° |
+| `explosionScale` | 0.1–3 | HE/HEAT/HESH visual asset scale, also scaled with calibre; no direct damage change |
 
-If the dropdown fails after editing, restore the backup and check `BepInEx/LogOutput.log` for `[Shell Profiles]` or `Shell selector disabled`. Include the relevant error and your JSON when reporting the issue. Do not change a profile ID after saving vehicles unless you intend those saved selections to become unavailable and fall back to vanilla.
+Example HEAT extras, keeping all required ballistic fields:
 
+```json
+"behavior": "heat",
+"chemicalPenetrationMm": 400,
+"secondPlatePenetrationFactor": 0.15,
+"spallMultiplier": 1.5,
+"coneHalfAngleDegrees": 8,
+"explosionScale": 0.7
+```
+
+At 100mm: 400mm initial capacity, then **at most 60mm** after a plate and air gap. If only 20mm remains, it stays 20mm. At 75mm: 300mm initial and at most 45mm later. Air-gap distance currently does not change this cap. Fragment energy does not restore the parent budget, but secondary fragments have their own native penetration.
+
+For HESH start from 300, .10, 8, 70, .65 respectively. It is a broad damage proxy that still requires perforation, not real nonperforating backface scabbing. For HE use reference power 40 and visual scale 1.5. For APHE use the built-in APHE body and tune the global `apheSpallMultiplier`, `apheConeHalfAngleDegrees` and `apheExplosionScale` in the spall config. APHE does not use these per-profile chemical fields.
+
+Payload fragment mass scales with calibre³, while counts scale with calibre and stop at native 32 per burst. APHE/HESH/HEAT retain payload fragment speed even after a barely successful penetration. No payload burst is forced through an unperforated plate.
+
+## Tuning tips
+
+- For more APFSDS penetration with unchanged geometry, increase quality gradually. Speed limits may make velocity tweaks ineffective.
+- For long/short rod experiments, change length, then compare mass, speed, penetration and cone. Do not assume length alone guarantees better output.
+- For stronger HEAT penetration, change the chemical budget. Quality/flight speed are not its impact penetration budget.
+- For more HEAT/HESH damage, change spall multiplier and cone. Count can hit 32; volume still changes fragment mass.
+- For stronger spaced-armour resistance, reduce second-plate factor. This is a balance proxy, not a distance formula.
+- Compare shells at equal full gun calibre. Simulator penetration is manual; chemical modes also obey their configured cap. Select the live shell separately on the cannon.
+
+Back up config before tuning. Restart after edits and check `BepInEx/LogOutput.log` if the selector disappears.

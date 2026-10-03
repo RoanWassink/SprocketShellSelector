@@ -10,14 +10,16 @@ internal static class RuntimeShellEffects
     private static void Scale(ProjectileImpactEffect __instance,ProjectileEffectInfo __0,out ScaleState? __state)
     {
         __state=null;
-        if(RuntimeSpall.Impact is not {ProfileId:"aphe",LiveImpact:true} || (__0.Type & ProjectileEffectType.Explosion)==0)return;
+        var context=RuntimeSpall.Impact;
+        if(context is not {LiveImpact:true} || context.Behavior is not ("aphe" or "heat" or "hesh" or "he") || (__0.Type & ProjectileEffectType.Explosion)==0)return;
         var assets=__instance.explosionAssets;
         if(assets==null)return;
         __state=new(__instance,assets,assets.MinScale,assets.MaxScale);
-        assets.MinScale*=(float)RuntimeSpall.Settings.ApheExplosionScale;
-        assets.MaxScale*=(float)RuntimeSpall.Settings.ApheExplosionScale;
+        var scale=ShellBalance.Visual(context.Behavior=="aphe" ? RuntimeSpall.Settings.ApheExplosionScale : context.Profile!.ExplosionScale,context.GunDiameter*1000);
+        assets.MinScale*=(float)scale;
+        assets.MaxScale*=(float)scale;
         __instance.explosionAssets=assets;
-        Plugin.ModLog.LogInfo($"[APHE Effect] Actual asset scale bounds multiplied by {RuntimeSpall.Settings.ApheExplosionScale:0.00}");
+        Plugin.ModLog.LogInfo($"[APHE Effect] {context.Behavior} asset scale bounds multiplied by {scale:0.00}");
     }
     [HarmonyFinalizer,HarmonyPatch(typeof(ProjectileImpactEffect),nameof(ProjectileImpactEffect.PlayEffect))]
     private static void RestoreScale(ScaleState? __state)
@@ -30,9 +32,11 @@ internal static class RuntimeShellEffects
     private static void Play(ProjectileEffectConfig __instance,ProjectileEffectInfo __0)
     {
         var context=RuntimeSpall.Impact;
-        if(context is not {ProfileId:"aphe",LiveImpact:true,ExplosionPending:true})return;
+        if(context is {LiveImpact:true,ChemicalVisualPlayed:false} && context.Behavior is "heat" or "hesh" && (__0.Type & ProjectileEffectType.Explosion)==0)
+        { context.ChemicalVisualPlayed=true; context.ExplosionPending=true; context.ExplosionPosition=__0.Position; }
+        if(context is not {LiveImpact:true,ExplosionPending:true} || context.Behavior is not ("aphe" or "heat" or "hesh"))return;
         context.ExplosionPending=false; // Also guards the nested visual-only PlayEffect call.
-        if(!RuntimeSpall.Settings.ApheExplosionEffect)return;
+        if(context.Behavior=="aphe" && !RuntimeSpall.Settings.ApheExplosionEffect)return;
         try
         {
             __instance.PlayEffect(new ProjectileEffectInfo {

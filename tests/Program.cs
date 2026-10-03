@@ -259,3 +259,99 @@ try {
  Check(File.ReadAllText(path)=="{}","invalid configuration not overwritten");
 } finally {Directory.Delete(repairDir,true);}
 Console.WriteLine($"v0.8.2 PASS: {checks} checks.");
+var copyNode=System.Text.Json.Nodes.JsonNode.Parse(profileJson)!;
+copyNode["profiles"]![0]!["id"]="long_rod";
+copyNode["profiles"]![0]!["label"]="Long rod";
+copyNode["profiles"]![0]!["behavior"]="apfsds";
+var copied=ShellProfiles.Parse(copyNode.ToJsonString())[0];
+Check(copied.Behavior=="apfsds" && copied.Id=="long_rod","APFSDS behavior independent of id");
+Check(profileList[0].Behavior=="apfsds" && profileList[1].Behavior=="aphe","old configurations retain dedicated behaviors");
+copyNode["profiles"]![0]!["behavior"]="ap";
+Check(ShellProfiles.Parse(copyNode.ToJsonString())[0].Behavior=="ap","explicit AP overrides legacy semantics");
+foreach(var behavior in new[]{"heat","hesh"}){
+ copyNode["profiles"]![0]!["behavior"]=behavior;
+ copyNode["profiles"]![0]!["chemicalPenetrationMm"]=350;
+ var p=ShellProfiles.Parse(copyNode.ToJsonString())[0];
+ Check(p.Behavior==behavior && p.ChemicalPenetrationMm==350,"chemical payload parses");
+}
+copyNode["profiles"]![0]!["behavior"]="he";
+copyNode["profiles"]![0]!["nativeExplosivePower"]=40;
+Check(ShellProfiles.Parse(copyNode.ToJsonString())[0].NativeExplosivePower==40,"native HE power parses");
+foreach(var invalid in new[]{copied with{Behavior="unknown"},copied with{Behavior="heat"},copied with{Behavior="he"},copied with{ChemicalPenetrationMm=2001},copied with{NativeExplosivePower=501},copied with{ExplosionScale=double.NaN},copied with{ConeHalfAngleDegrees=91}}){
+ var rejected=false;try{ShellPayload.Validate(invalid);}catch(FormatException){rejected=true;}
+ Check(rejected,"unsupported payload rejected");
+}
+Console.WriteLine($"v0.9.0 EXPERIMENT PASS: {checks} checks.");
+if(args.Length>0){
+ var presets=ShellProfiles.Parse(File.ReadAllText(args[0]));
+ Check(presets.Count is 5 or 6,"preset file loads");
+ Check(presets.Count(p=>p.Behavior=="apfsds")==2,"two APFSDS variants load");
+ Check(presets.Any(p=>p.Behavior=="he")&&presets.Any(p=>p.Behavior=="heat")&&presets.Any(p=>p.Behavior=="hesh"),"all payload examples present");
+ Console.WriteLine($"PRESETS PASS: {checks} checks.");
+}
+var heatPreset=copied with{Behavior="heat",ChemicalPenetrationMm=400,NativeExplosivePower=40};
+Check(ShellBalance.ChemicalPenetration(heatPreset,75)==300,"HEAT scales penetration with calibre");
+Check(ShellBalance.ChemicalPenetration(heatPreset,125)==500,"125mm chemical capacity");
+Check(ShellBalance.BlastPower(heatPreset,100)==40 && Math.Abs(ShellBalance.BlastPower(heatPreset,200)-320)<1e-9,"HE power scales with calibre cubed");
+Check(ShellBalance.BlastPower(heatPreset,500)==500,"HE power has upper bound");
+Check(ShellBalance.FragmentTarget("heat",75)>=12,"75mm HEAT has useful fragment budget");
+Check(ShellBalance.FragmentTarget("hesh",300)==32,"large HESH stays within native fragment cap");
+Check(Math.Abs(ShellBalance.FragmentVolume("heat",200)/ShellBalance.FragmentVolume("heat",100)-8)<1e-9,"spall volume scales with calibre cubed");
+var shortProfile=copied with{Settings=copied.Settings with{LengthInCalibres=3}};
+var longProfile=copied with{Settings=copied.Settings with{LengthInCalibres=6}};
+Check(ShellBalance.BallisticSettings(shortProfile).PenetrationQuality<copied.Settings.PenetrationQuality,"short rod penetration efficiency lower");
+Check(ShellBalance.BallisticSettings(longProfile).PenetrationQuality>copied.Settings.PenetrationQuality,"long rod penetration efficiency higher");
+Check(ShellBalance.RodCone(shortProfile.Settings)>ShellBalance.RodCone(longProfile.Settings),"short rod has wider cone than long rod");
+Check(ShellBalance.BallisticSettings(profileList[1])==profileList[1].Settings,"APHE geometry not affected by rod modifier");
+Check(ShellBalance.Visual(.65,125)<ShellBalance.Visual(1.5,125),"HE visual larger than APHE at equal calibre");
+Check(ShellBalance.FragmentSpeed("heat",100)>ShellBalance.FragmentSpeed("hesh",100),"HEAT concentrated fast fragments HESH slower broad fragments");
+Console.WriteLine($"v0.9.1 BALANCE PASS: {checks} checks.");
+var layers=new ChemicalLayers();
+Check(!layers.Observe(false),"initial air does not consume first plate");
+Check(!layers.Observe(true),"first solid keeps initial budget");
+Check(!layers.Observe(true),"contiguous solid does not count as spaced plate");
+Check(!layers.Observe(false),"air gap arms degradation without changing air simulation");
+Check(layers.Observe(true)&&layers.Degraded,"second solid after gap degrades budget");
+Check(layers.Observe(true),"degraded budget persists through later solids");
+Check(ShellBalance.SecondPlateBudget(heatPreset,100,350)==60,"HEAT second plate capped to 15 percent");
+Check(ShellBalance.SecondPlateBudget(heatPreset,100,20)==20,"second plate never restores lost penetration");
+Check(ShellBalance.SecondPlateBudget(heatPreset,200,700)==120,"second plate capacity scales with calibre");
+Check(ShellBalance.FragmentTarget("aphe",75)>=21 && ShellBalance.FragmentTarget("hesh",100)==32,"stronger APHE HESH fragment budgets");
+copyNode["profiles"]![0]!["behavior"]="heat";
+copyNode["profiles"]![0]!["secondPlatePenetrationFactor"]=.2;
+Check(ShellProfiles.Parse(copyNode.ToJsonString())[0].SecondPlatePenetrationFactor==.2,"second plate factor configurable");
+foreach(var factor in new[]{0d,1.1,double.NaN}){
+ var rejected=false;try{ShellPayload.Validate(heatPreset with{SecondPlatePenetrationFactor=factor});}catch(FormatException){rejected=true;}
+ Check(rejected,"invalid layer factor rejected");
+}
+Console.WriteLine($"v0.9.2 LAYERS PASS: {checks} checks.");
+foreach(var behavior in new[]{"aphe","hesh","heat"}){
+ var target=ShellBalance.FragmentSpeed(behavior,100);
+ Check(ShellBalance.PayloadFragmentSpeed(behavior,100,0)==target,"barely perforating payload retains fragment energy");
+ Check(ShellBalance.PayloadFragmentSpeed(behavior,100,5000)==target*1.25,"payload fragment energy bounded");
+ Check(ShellBalance.PayloadFragmentSpeed(behavior,100,double.NaN)==target,"invalid native speed has finite fallback");
+ Check(ShellBalance.FragmentTarget(behavior,75)>=26,"75mm payload has dense burst");
+}
+Check(ShellBalance.FragmentVolume("hesh",100)>ShellBalance.FragmentVolume("aphe",100),"HESH heavier broad burst than APHE");
+Check(ShellBalance.FragmentVolume("aphe",100)>ShellBalance.FragmentVolume("heat",100),"APHE broad damage HEAT concentrated damage");
+Console.WriteLine($"v0.9.3 PAYLOAD PASS: {checks} checks.");
+var releaseDefaults=ShellProfiles.Parse(ReleaseProfiles.Defaults());
+Check(releaseDefaults.Count==6 && !releaseDefaults.Any(p=>p.Id=="apfsds"),"release has six presets without standard dart");
+Check(releaseDefaults.Count(p=>p.Behavior=="apfsds")==2,"release includes long and short rods");
+Check(ShellProfiles.Resolve("apfsds",false,releaseDefaults)=="apfsds_long","old dart saves map to long rod");
+Check(ShellProfiles.Resolve(null,true,releaseDefaults)=="apfsds_long","legacy selected flag maps to long rod");
+var upgradeDir=Path.Combine(Path.GetTempPath(),"shell-release-test-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(upgradeDir);
+try{
+ var path=Path.Combine(upgradeDir,"profiles.json");File.WriteAllText(path,profileJson);
+ Check(ReleaseProfiles.Upgrade(path),"old config upgraded");
+ var upgraded=ShellProfiles.Parse(File.ReadAllText(path));
+ Check(upgraded.Count==6 && !upgraded.Any(p=>p.Id=="apfsds"),"stock old dart removed while new presets added");
+ Check(upgraded.Single(p=>p.Id=="aphe").Settings==profileList[1].Settings,"existing APHE tuning preserved");
+ Check(File.ReadAllText(path+".pre-v094-backup")==profileJson,"upgrade backs up exact config");
+ Check(!ReleaseProfiles.Upgrade(path),"release upgrade idempotent");
+ File.WriteAllText(path,profileJson.Replace("APFSDS (beta)","My custom dart"));ReleaseProfiles.Upgrade(path);
+ Check(ShellProfiles.Parse(File.ReadAllText(path)).Any(p=>p.Id=="apfsds"),"named custom old dart retained");
+ File.WriteAllText(path,"{}");try{ReleaseProfiles.Upgrade(path);}catch(Exception){}
+ Check(File.ReadAllText(path)=="{}","invalid upgrade input preserved");
+}finally{Directory.Delete(upgradeDir,true);}
+Console.WriteLine($"v0.9.4 RELEASE PASS: {checks} checks.");

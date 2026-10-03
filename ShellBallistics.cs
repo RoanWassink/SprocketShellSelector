@@ -46,5 +46,3 @@ internal static class ShellBallistics
             (float)settings.DamageMultiplier);
     }
 }
-
-
