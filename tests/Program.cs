@@ -40,7 +40,7 @@ Reject(() => ShellBallistics.Calculate(120, 800, 1800, defaults with { Density =
 Reject(() => ShellBallistics.Calculate(120, 800, 1800, defaults with { DamageMultiplier = 2 }), "reject invalid damage scale");
 var profileJson = ShellProfiles.CreateDefault(defaults);
 var profileList = ShellProfiles.Parse(profileJson);
-Check(profileList.Count == 1 && profileList[0].Id == "apfsds", "default profile ID");
+Check(profileList.Count == 2 && profileList[0].Id == "apfsds", "default profile ID");
 Check(profileList[0].Settings == defaults, "JSON preserves complete default settings");
 Check(ShellBallistics.Calculate(120, 800, 1800, profileList[0].Settings) == dart120, "profile migration preserves ballistics");
 Check(ShellProfiles.Resolve(null, true, profileList) == "apfsds", "old selected save migrates");
@@ -239,3 +239,23 @@ Check(PlateDeflection.Bend(incoming,slopeNormal,0,30)==incoming,"zero maximum an
 var turn=System.Numerics.Quaternion.CreateFromAxisAngle(System.Numerics.Vector3.UnitZ,1);
 Check(System.Numerics.Vector3.Distance(System.Numerics.Vector3.Transform(downward,turn),PlateDeflection.Bend(System.Numerics.Vector3.Transform(incoming,turn),System.Numerics.Vector3.Transform(slopeNormal,turn),8,30))<1e-6,"deflection rotates with plate and incoming shot");
 Console.WriteLine($"v0.8.0 EXPERIMENT PASS: {checks} checks.");
+var repairDir = Path.Combine(Path.GetTempPath(), "shell-repair-"+Guid.NewGuid());
+Directory.CreateDirectory(repairDir);
+try {
+ var path=Path.Combine(repairDir,"sprocket.shellselector.shells.json");
+ var old="{\"schemaVersion\":1,\"profiles\":["+objectJson+"]}";
+ File.WriteAllText(path,old);
+ Check(ShellConfigMigration.EnsureApheProfile(path),"missing APHE repaired");
+ Check(ShellProfiles.Parse(File.ReadAllText(path)).Count==2,"repair adds APHE");
+ Check(ShellProfiles.Parse(File.ReadAllText(path))[0].Settings==defaults,"repair preserves APFSDS values");
+ Check(File.ReadAllText(path+".pre-aphe-backup")==old,"repair backs up exact original");
+ var repaired=File.ReadAllText(path);
+ Check(!ShellConfigMigration.EnsureApheProfile(path)&&File.ReadAllText(path)==repaired,"repair is idempotent");
+ File.WriteAllText(path,profileJson.Replace("\"penetrationQuality\": 0.65","\"penetrationQuality\": 0.7"));
+ var custom=File.ReadAllText(path);
+ Check(!ShellConfigMigration.EnsureApheProfile(path)&&File.ReadAllText(path)==custom,"existing APHE preserved byte for byte");
+ File.WriteAllText(path,"{}");
+ try {ShellConfigMigration.EnsureApheProfile(path);} catch(FormatException) {}
+ Check(File.ReadAllText(path)=="{}","invalid configuration not overwritten");
+} finally {Directory.Delete(repairDir,true);}
+Console.WriteLine($"v0.8.2 PASS: {checks} checks.");

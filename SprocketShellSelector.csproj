@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <Import Project="SprocketMod.props" />
-  <PropertyGroup><AssemblyName>SprocketShellSelector</AssemblyName><RootNamespace>SprocketShellSelector</RootNamespace><PlatformTarget>x64</PlatformTarget><Version>0.8.1</Version></PropertyGroup>
+  <PropertyGroup><AssemblyName>SprocketShellSelector</AssemblyName><RootNamespace>SprocketShellSelector</RootNamespace><PlatformTarget>x64</PlatformTarget><Version>0.8.2</Version></PropertyGroup>
   <ItemGroup><Compile Remove="tests\**\*.cs;work\**\*.cs;outputs\**\*.cs" /></ItemGroup>
 </Project>

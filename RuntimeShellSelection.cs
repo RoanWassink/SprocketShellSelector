@@ -54,6 +54,7 @@ internal static class RuntimeShellSelection
             new(diameter.Value, length.Value, density.Value, efficiency.Value, maxFactor.Value,
                 maxSpeed.Value, quality.Value, damage.Value));
         profiles = ShellProfiles.Parse(File.ReadAllText(path));
+        if (!profiles.Any(p => p.Id == "aphe")) Plugin.ModLog.LogWarning("[Shell Profiles] APHE missing: configuration has reached the 16-profile limit. Remove one profile and restart to allow automatic repair.");
         Labels.Clear();
         Labels.Add("Vanilla ammunition");
         foreach (var profile in profiles) Labels.Add(profile.Label);

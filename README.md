@@ -2,13 +2,17 @@
 
 A vibe-coded BepInEx IL2CPP plugin that adds **APFSDS and APHE shell profiles** to Sprocket's cannon inspector and armour penetration simulator.
 
-**Built with AI assistance.** Version **0.8.1** has been tested in-game, with 137 managed regression checks passing.
+**Built with AI assistance.** Version **0.8.2** has been tested in-game, with 144 managed regression checks passing.
 
 ## Requirements
 
 - Sprocket **0.2.55.5** (Unity **6000.3.21f1**).
 - A working **Sprocket Mod Loader / BepInEx 6 IL2CPP** setup with its .NET 6 runtime—the same environment used by Hans21223's *Sprocket Quality of Life*.
 - Quality of Life and Material Selector are optional.
+
+## Missing APHE after installing v0.8.1?
+
+Close the game and replace the shell DLL with v0.8.2, then restart. It adds missing APHE to the active `BepInEx/config/sprocket.shellselector.shells.json` while preserving existing profiles, and saves a `.pre-aphe-backup` beside the file. Fresh installs include both profiles. With 16 custom profiles, free one slot first. Invalid JSON is reported rather than overwritten.
 
 ## Installation
 

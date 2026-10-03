@@ -74,6 +74,14 @@ internal static class ShellProfiles
             maximumVelocity = settings.MaxVelocity,
             penetrationQuality = settings.PenetrationQuality,
             fragmentDamageMultiplier = settings.DamageMultiplier
+        }, new
+        {
+            id = "aphe", label = "APHE (enhanced spall)",
+            penetratorDiameterFactor = .9, penetratorLengthInCalibres = 2d,
+            penetratorDensity = 7800d, velocityEfficiency = .1,
+            velocityMultiplier = 1d, maximumVelocityFactor = 1d,
+            maximumVelocity = 2200d, penetrationQuality = .65,
+            fragmentDamageMultiplier = 1d
         } }
     }, new JsonSerializerOptions { WriteIndented = true });
 
