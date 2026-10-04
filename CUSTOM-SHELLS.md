@@ -1,6 +1,6 @@
 # Making your own shell profiles
 
-This guide describes **v0.10.0**. Profiles do not change the cannon's propellant setting or visible ammunition model.
+This guide describes **v0.11.0**. Profiles do not change the cannon's propellant setting or visible ammunition model.
 
 ## Add a shell
 
@@ -44,6 +44,8 @@ Add this object to the existing array:
 | `he` | Native impact blast | Positive `nativeExplosivePower`; `explosionScale` |
 | `heat` | High chemical first-plate budget, concentrated spall, spaced-armour gap loss | Positive `chemicalPenetrationMm`, `secondPlatePenetrationFactor`, `spallMultiplier`, `coneHalfAngleDegrees`, `explosionScale` |
 | `hesh` | Heavy broad spall, lower chemical budget, spaced-armour gap loss | Same fields as HEAT |
+| `atgm` | Launcher-style guided/powered missile with HEAT impact | ATGM motor/guidance fields and chemical payload |
+| `atgm_gun` | Gun-launched missile with the same guidance/impact | Normally cannon launch mode; separate sound |
 
 All ten numeric ballistic fields in the example remain required for every behavior. Start from the corresponding built-in example in [default-shells.json](default-shells.json), rather than changing only a label. If `behavior` is absent, legacy IDs `apfsds` and `aphe` infer those behaviors; all other IDs infer `ap`. New custom shells should always specify it.
 
@@ -142,7 +144,7 @@ Back up config before tuning. Restart after edits and check `BepInEx/LogOutput.l
 
 ## Custom ATGMs
 
-Copy either ATGM example from [default-shells.json](default-shells.json), change ID/label, keep `"behavior": "atgm"`, and choose `"guidanceMode": "sight"`, `"keyboard"` or `"none"`. IDs do not determine guidance. Both guided modes share the same motor controls and HEAT impact logic; `none` is powered straight flight.
+Copy either ATGM example from [default-shells.json](default-shells.json), change ID/label, use `"behavior": "atgm"` for a launcher or `"behavior": "atgm_gun"` for a gun-launched missile, and choose `"guidanceMode": "sight"`, `"keyboard"` or `"none"`. IDs do not determine guidance. Both guided modes share the same motor controls and HEAT impact logic; `none` is powered straight flight.
 
 | Setting | Range / default when omitted | Interaction |
 |---|---|---|
@@ -153,6 +155,8 @@ Copy either ATGM example from [default-shells.json](default-shells.json), change
 | `launchSpeedMultiplier` | 0.01–4 / 1 | In cannon mode, multiply native muzzle velocity then clamp to 10–flightSpeed |
 | `acceleration` | 0–2000 / 0 | Motor acceleration in m/s²; zero retains initial speed |
 | `motorDelay` | 0–5 / 0 | Seconds after spawn before acceleration; less than flight lifetime if acceleration > 0 |
+| `motorBurnTime` | 0–60 / 0 | Seconds of acceleration after ignition; 0 means unlimited burn for legacy compatibility |
+| `coastDeceleration` | 0–100 / 0 | m/s² speed loss after finite burnout; minimum flight speed 10 m/s |
 | `maxTurnRate` | 0–90 / 20 | Degrees/second shared by both guidance modes; diagonal keyboard commands share the limit |
 | `maximumFlightTime` | 1–60 / 25 | Seconds before missile release without additional detonation |
 | `guidanceDelay` | 0–5 / 0.25 | Delay before steering; must be less than maximumFlightTime |
@@ -165,7 +169,9 @@ For a soft launch, add these fields inside either existing ATGM profile:
 "launchSpeed": 50,
 "launchSpeedMultiplier": 1,
 "acceleration": 150,
-"motorDelay": 0.15,
+"motorDelay": 0.12,
+"motorBurnTime": 4,
+"coastDeceleration": 1,
 "flightSpeed": 200
 ```
 
@@ -174,7 +180,11 @@ For propellant-dependent launch speed, use `"launchSpeedMode": "cannon"` and e.g
 ```text
 fixed launch = launchSpeed (or flightSpeed if omitted)
 cannon launch = clamp(native cannon muzzle velocity × launchSpeedMultiplier, 10, flightSpeed)
-powered speed(t) = min(flightSpeed, initial speed + acceleration × max(0, t - motorDelay))
+poweredAge = max(0, t - motorDelay)
+burnAge = motorBurnTime > 0 ? min(poweredAge, motorBurnTime) : poweredAge
+peak = min(flightSpeed, initial speed + acceleration × burnAge)
+coastAge = motorBurnTime > 0 ? max(0, poweredAge - motorBurnTime) : 0
+speed = max(10, peak - coastDeceleration × coastAge)
 chemical penetration = clamp(chemicalPenetrationMm × gun calibre / referenceCalibreMm, 1, 2000)
 ```
 
@@ -185,3 +195,5 @@ Penetration does not increase with flight speed: ATGM uses its configured chemic
 Old custom ATGMs without motor fields retain constant flightSpeed. Migration writes explicit equivalent settings and a backup. At the 16-profile limit, free a slot to add a missing example. Do not replace your whole config with default-shells.json unless you want to discard custom shells.
 
 See [ATGM.md](ATGM.md) for controls, guidance references and rollback.
+
+Before ignition, native ballistics are used; at ignition actual speed and heading are captured as the powered phase starts. The curve describes commanded speed, not a physical thrust/fuel model. Missing burn/coast fields default to zero and preserve legacy sustained power. Default examples use burn time 4 s and coast loss 1 m/s². Both ATGM behaviors share guidance and HEAT impact; their audio can be overridden independently.

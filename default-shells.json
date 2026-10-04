@@ -126,7 +126,9 @@
       "launchSpeedMode": "fixed",
       "launchSpeedMultiplier": 1,
       "acceleration": 150,
-      "motorDelay": 0.15
+      "motorDelay": 0.12,
+      "motorBurnTime": 4,
+      "coastDeceleration": 1
     },
     {
       "id": "atgm_mclos_test",
@@ -157,7 +159,42 @@
       "launchSpeedMode": "fixed",
       "launchSpeedMultiplier": 1,
       "acceleration": 150,
-      "motorDelay": 0.15
+      "motorDelay": 0.12,
+      "motorBurnTime": 4,
+      "coastDeceleration": 1
+    },
+    {
+      "id": "atgm_gun_saclos",
+      "label": "Gun-launched SACLOS ATGM",
+      "behavior": "atgm_gun",
+      "penetratorDiameterFactor": 0.9,
+      "penetratorLengthInCalibres": 5,
+      "penetratorDensity": 1800,
+      "velocityEfficiency": 0.1,
+      "velocityMultiplier": 1,
+      "maximumVelocityFactor": 1,
+      "maximumVelocity": 200,
+      "penetrationQuality": 0.45,
+      "fragmentDamageMultiplier": 1,
+      "referenceCalibreMm": 135,
+      "chemicalPenetrationMm": 600,
+      "spallMultiplier": 1.5,
+      "coneHalfAngleDegrees": 8,
+      "explosionScale": 0.7,
+      "secondPlatePenetrationFactor": 0.15,
+      "airGapLossPerCalibre": 0.35,
+      "flightSpeed": 200,
+      "maxTurnRate": 20,
+      "maximumFlightTime": 25,
+      "guidanceDelay": 0.25,
+      "guidanceMode": "sight",
+      "launchSpeed": 50,
+      "launchSpeedMode": "cannon",
+      "launchSpeedMultiplier": 0.2,
+      "acceleration": 150,
+      "motorDelay": 0.08,
+      "motorBurnTime": 4,
+      "coastDeceleration": 1
     }
   ]
 }

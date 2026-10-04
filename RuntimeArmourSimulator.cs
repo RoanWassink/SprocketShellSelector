@@ -21,7 +21,7 @@ internal static class RuntimeArmourSimulator
     }
     private static ShellProfile? Selected(ArmourOverlay? overlay) => RuntimeShellSelection.Enabled && overlay!=null && Choices.TryGetValue(overlay.Pointer,out var choice)
         ? RuntimeShellSelection.Profiles.FirstOrDefault(p=>p.Id==choice.Id) : null;
-    private static float EffectivePenetration(ShellProfile profile,ArmourOverlay overlay) => profile.Behavior is "heat" or "hesh" or "atgm"
+    private static float EffectivePenetration(ShellProfile profile,ArmourOverlay overlay) => profile.Behavior is "heat" or "hesh" or "atgm" or "atgm_gun"
         ? Math.Min(overlay.Penetration,(float)ShellBalance.ChemicalPenetration(profile,overlay.Calibre)) : overlay.Penetration;
     [HarmonyPrefix,HarmonyPatch(typeof(ArmourOverlayConfig),nameof(ArmourOverlayConfig.Draw))]
     private static void Limits(ArmourOverlayConfig __instance)

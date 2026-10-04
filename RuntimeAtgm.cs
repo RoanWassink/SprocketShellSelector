@@ -22,7 +22,8 @@ internal static class RuntimeAtgm
         internal readonly ShellProfile Profile;
         internal readonly string Definition;
         internal readonly float SpawnTime;
-        internal readonly double InitialSpeed;
+        internal double InitialSpeed;
+        internal bool MotorStarted;
         internal Vector3 Heading;
         internal float LastLog;
         internal bool Report;
@@ -51,6 +52,7 @@ internal static class RuntimeAtgm
     private static void Warn(string area,Exception ex)
     {if(Warnings.Add(area))Plugin.ModLog.LogWarning($"[ATGM] {area}: {ex.Message}");}
 
+    internal static bool IsPlayerVehicle(IntPtr vehicle) => vehicle!=IntPtr.Zero && vehicle==currentVehicle;
     private static bool KeyboardOwned(Flight flight, float now) => Ready && Enabled && flight.Guide &&
         flight.Profile.Atgm?.GuidanceMode == "keyboard" && flight.Vehicle != IntPtr.Zero && flight.Vehicle == currentVehicle &&
         now >= flight.SpawnTime && now-flight.SpawnTime < flight.Profile.Atgm.MaximumFlightTime &&
@@ -149,7 +151,7 @@ internal static class RuntimeAtgm
             if(weapon==null || !__instance.activeIdMap.TryGetValue(fireInfo.ProjectileID,out var index))return;
             var p=__instance.pool[index];
             var profile=RuntimeShellSelection.ProjectileProfile(p);
-            if(profile?.Behavior!="atgm" || profile.Atgm==null)return;
+            if(profile==null || !ShellBalance.IsAtgm(profile.Behavior) || profile.Atgm==null)return;
             var flight=new Flight(weapon,profile,p);
             foreach(var old in Flights.Values.Where(f=>f.Weapon.Pointer==weapon.Pointer || flight.Vehicle!=IntPtr.Zero && f.Vehicle==flight.Vehicle))old.Guide=false;
             Flights[(__instance.Pointer,p.ID)]=flight;
@@ -177,9 +179,22 @@ internal static class RuntimeAtgm
                     ((int)p.flags & 1)==0 || ((int)p.flags & 14)!=0)
                 {Flights.Remove(key);continue;}
                 var settings=flight.Profile.Atgm!;var age=now-flight.SpawnTime;
+                if(age>=settings.MaximumFlightTime){__instance.Release(key.Id);Flights.Remove(key);Plugin.ModLog.LogInfo($"[ATGM] EXPIRED id={key.Id}; no detonation.");continue;}
+                if(age<settings.MotorDelay)
+                {
+                    // Let native gravity/drag integrate the actual ejection velocity.
+                    flight.Heading=p.velocity.normalized;
+                    continue;
+                }
+                if(!flight.MotorStarted)
+                {
+                    flight.MotorStarted=true;
+                    flight.InitialSpeed=Math.Clamp(p.velocity.magnitude,10,settings.FlightSpeed);
+                    flight.Heading=p.velocity.normalized;
+                    Plugin.ModLog.LogInfo($"[ATGM] MOTOR id={key.Id} age={age:0.00}s speed={p.velocity.magnitude:0.0}m/s heading={flight.Heading}");
+                }
                 var speed=AtgmGuidance.SpeedAtAge(settings,flight.InitialSpeed,Math.Max(0,age));
                 var steeringSettings=settings with {FlightSpeed=speed};
-                if(age>=settings.MaximumFlightTime){__instance.Release(key.Id);Flights.Remove(key);Plugin.ModLog.LogInfo($"[ATGM] EXPIRED id={key.Id}; no detonation.");continue;}
                 Vector3? target=null;
                 var cannon=flight.Weapon.mount?.TryCast<Cannon>();
                 var sight=flight.Weapon.Sight;
@@ -192,6 +207,13 @@ internal static class RuntimeAtgm
                     {aim=playerAim;reason="player-ray";}
                     else if(sight!=null && Aims.TryGetValue(sight.Pointer,out var scopeAim) && AtgmGuidance.FreshAim(now,scopeAim.Time))
                     {aim=scopeAim;reason="scope-ray";}
+                }
+                if(flight.Guide && age>=settings.GuidanceDelay && settings.GuidanceMode!="none" &&
+                    !IsPlayerVehicle(flight.Vehicle) && cannon!=null && cannon.HealthFraction>0 &&
+                    RuntimeAtgmAi.TryAim(flight.Weapon.Pointer,now,out var aiOrigin,out var aiDirection))
+                {
+                    aim=new(aiOrigin,aiDirection,now,IntPtr.Zero);reason="ai-ray";
+                    steeringSettings=steeringSettings with {GuidanceMode="sight"};
                 }
                 if(aim!=null)
                 {
@@ -243,5 +265,5 @@ internal static class RuntimeAtgm
     private static void Released(ProjectileRegister __instance,int __0)=>Flights.Remove((__instance.Pointer,__0));
     [HarmonyPrefix,HarmonyPatch(typeof(ProjectileRegister),nameof(ProjectileRegister.DestroyAll))]
     private static void Clear(ProjectileRegister __instance)
-    {foreach(var key in Flights.Keys.Where(k=>k.Register==__instance.Pointer).ToArray())Flights.Remove(key);Aims.Clear();PlayerAims.Clear();Warnings.Clear();LockedControllers.Clear();currentVehicle=IntPtr.Zero;}
+    {foreach(var key in Flights.Keys.Where(k=>k.Register==__instance.Pointer).ToArray())Flights.Remove(key);Aims.Clear();PlayerAims.Clear();Warnings.Clear();LockedControllers.Clear();currentVehicle=IntPtr.Zero;RuntimeAtgmAi.Clear();}
 }

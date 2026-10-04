@@ -33,12 +33,13 @@ internal static class ReleaseProfiles
         foreach(var entry in entries)
         {
             var profile=parsed.FirstOrDefault(p=>p.Id==entry!["id"]!.GetValue<string>());
-            if(profile?.Behavior!="atgm" || profile.Atgm is not {} flight)continue;
+            if(profile==null || !ShellBalance.IsAtgm(profile.Behavior) || profile.Atgm is not {} flight)continue;
             foreach(var setting in new Dictionary<string,JsonNode?> {
                 ["launchSpeed"]=JsonValue.Create(flight.LaunchSpeed ?? flight.FlightSpeed),
                 ["launchSpeedMode"]=JsonValue.Create(flight.LaunchSpeedMode),
                 ["launchSpeedMultiplier"]=JsonValue.Create(flight.LaunchSpeedMultiplier),
-                ["acceleration"]=JsonValue.Create(flight.Acceleration), ["motorDelay"]=JsonValue.Create(flight.MotorDelay)})
+                ["acceleration"]=JsonValue.Create(flight.Acceleration), ["motorDelay"]=JsonValue.Create(flight.MotorDelay), ["motorBurnTime"]=JsonValue.Create(flight.MotorBurnTime),
+                ["coastDeceleration"]=JsonValue.Create(flight.CoastDeceleration)})
                 if(!entry!.AsObject().ContainsKey(setting.Key)){entry[setting.Key]=setting.Value;changed=true;}
         }
         // Rename recognized stock experimental labels only; preserve custom names and settings.

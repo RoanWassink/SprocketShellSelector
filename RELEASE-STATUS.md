@@ -1,3 +1,7 @@
 # Release status
 
-v0.10.0 integrates SACLOS and MCLOS ATGM examples on top of v0.9.8. Both guidance modes and configurable launch/acceleration were accepted in user gameplay testing. 301 standalone managed checks pass; native plugin build succeeds. Stock experimental labels are cleaned up while IDs, custom labels and tuned values are preserved.
+v0.11.0 bundles the accepted AI aiming/guidance and motor flight changes, gun-launched profile and latest installed balanced gun-launched sound. Source changes to AI guidance are not made during release preparation.
+
+The creator confirmed both supplied recordings are their own. Player guidance and AI behavior were accepted in prior gameplay testing with one guided missile per vehicle. Comprehensive final audio comparison with stock sounds and all scene transitions remains a validation limit.
+
+The release preserves custom configuration and audio overrides. Fresh examples include finite motor burn/coast settings; existing profiles retain their tuned or legacy-compatible settings.

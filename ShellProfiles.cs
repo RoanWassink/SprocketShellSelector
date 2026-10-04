@@ -20,7 +20,7 @@ internal static class ShellProfiles
         "penetrationQuality", "fragmentDamageMultiplier"
     };
     private static readonly HashSet<string> Optional = new(StringComparer.Ordinal)
-    { "behavior", "chemicalPenetrationMm", "nativeExplosivePower", "spallMultiplier", "coneHalfAngleDegrees", "explosionScale", "secondPlatePenetrationFactor", "airGapLossPerCalibre", "referenceCalibreMm", "flightSpeed", "maxTurnRate", "maximumFlightTime", "guidanceDelay", "guidanceMode", "launchSpeed", "launchSpeedMode", "launchSpeedMultiplier", "acceleration", "motorDelay" };
+    { "behavior", "chemicalPenetrationMm", "nativeExplosivePower", "spallMultiplier", "coneHalfAngleDegrees", "explosionScale", "secondPlatePenetrationFactor", "airGapLossPerCalibre", "referenceCalibreMm", "flightSpeed", "maxTurnRate", "maximumFlightTime", "guidanceDelay", "guidanceMode", "launchSpeed", "launchSpeedMode", "launchSpeedMultiplier", "acceleration", "motorDelay", "motorBurnTime", "coastDeceleration" };
 
     internal static IReadOnlyList<ShellProfile> Parse(string json)
     {
@@ -62,9 +62,9 @@ internal static class ShellProfiles
             var profile = new ShellProfile(id,label,settings,behavior,
                 Option("chemicalPenetrationMm",0),Option("nativeExplosivePower",0),
                 Option("spallMultiplier",1),Option("coneHalfAngleDegrees",90),Option("explosionScale",1),Option("secondPlatePenetrationFactor",behavior=="hesh"?.1:.15),Option("airGapLossPerCalibre",behavior=="hesh"?12:.35),Option("referenceCalibreMm",100),
-                behavior=="atgm" ? new AtgmSettings(Option("flightSpeed",200),Option("maxTurnRate",20),Option("maximumFlightTime",25),Option("guidanceDelay",.25),
+                ShellBalance.IsAtgm(behavior) ? new AtgmSettings(Option("flightSpeed",200),Option("maxTurnRate",20),Option("maximumFlightTime",25),Option("guidanceDelay",.25),
                     TextOption("guidanceMode","sight"), item.TryGetProperty("launchSpeed",out var launch) ? ReadNumber("launchSpeed",launch) : null,
-                    TextOption("launchSpeedMode","fixed"),Option("launchSpeedMultiplier",1),Option("acceleration",0),Option("motorDelay",0)) : null);
+                    TextOption("launchSpeedMode","fixed"),Option("launchSpeedMultiplier",1),Option("acceleration",0),Option("motorDelay",0),Option("motorBurnTime",0),Option("coastDeceleration",0)) : null);
             ShellPayload.Validate(profile);
             result.Add(profile);
         }

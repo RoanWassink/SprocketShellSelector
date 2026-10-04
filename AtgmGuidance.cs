@@ -5,7 +5,7 @@ namespace SprocketShellSelector;
 internal sealed record AtgmSettings(double FlightSpeed = 200, double MaxTurnRate = 20,
     double MaximumFlightTime = 25, double GuidanceDelay = .25, string GuidanceMode = "sight",
     double? LaunchSpeed = null, string LaunchSpeedMode = "fixed", double LaunchSpeedMultiplier = 1,
-    double Acceleration = 0, double MotorDelay = 0);
+    double Acceleration = 0, double MotorDelay = 0, double MotorBurnTime = 0, double CoastDeceleration = 0);
 
 // Gameplay guidance only: bounded rotation, constant powered speed, no target lock.
 internal static class AtgmGuidance
@@ -21,7 +21,18 @@ internal static class AtgmGuidance
     {
         if (!double.IsFinite(initialSpeed) || !double.IsFinite(age) || initialSpeed < 0 || age < 0)
             throw new ArgumentOutOfRangeException(nameof(age));
-        return Math.Min(s.FlightSpeed,initialSpeed+s.Acceleration*Math.Max(0,age-s.MotorDelay));
+        var poweredAge=Math.Max(0,age-s.MotorDelay);
+        var burnAge=s.MotorBurnTime>0 ? Math.Min(poweredAge,s.MotorBurnTime) : poweredAge;
+        var peak=Math.Min(s.FlightSpeed,initialSpeed+s.Acceleration*burnAge);
+        var coastAge=s.MotorBurnTime>0 ? Math.Max(0,poweredAge-s.MotorBurnTime) : 0;
+        return Math.Max(10,peak-s.CoastDeceleration*coastAge);
+    }
+    internal static Vector3 AiIntercept(Vector3 target, Vector3 estimatedVelocity, Vector3 launch, AtgmSettings s)
+    {
+        // Game AI prediction only: retain its estimated target/velocity, omit shell drop.
+        var point=target;
+        for(var i=0;i<3;i++)point=target+estimatedVelocity*(Vector3.Distance(point,launch)/(float)s.FlightSpeed);
+        return point;
     }
     internal static bool FreshAim(double now,double sampleTime) => double.IsFinite(now) && double.IsFinite(sampleTime) && now>=sampleTime && now-sampleTime<.3;
     internal static Vector3 AimAlongRay(Vector3 origin, Vector3 direction, Vector3 missilePosition, double flightSpeed)
@@ -44,6 +55,8 @@ internal static class AtgmGuidance
         if (s.LaunchSpeed is {} launch) Range("launchSpeed", launch, 10, s.FlightSpeed);
         Range("launchSpeedMultiplier", s.LaunchSpeedMultiplier, .01, 4);
         Range("acceleration", s.Acceleration, 0, 2000);
+        Range("motorBurnTime", s.MotorBurnTime, 0, 60);
+        Range("coastDeceleration", s.CoastDeceleration, 0, 100);
         Range("motorDelay", s.MotorDelay, 0, 5);
         if (s.Acceleration > 0 && s.MotorDelay >= s.MaximumFlightTime)
             throw new FormatException($"Profile '{p.Id}': motorDelay must be less than maximumFlightTime when acceleration is enabled.");

@@ -1,0 +1,13 @@
+Sprocket Shell Selector v0.11.0
+
+Close Sprocket. Copy the BepInEx folder into the folder containing Sprocket.exe and merge folders, replacing the old SprocketShellSelector.dll. Keep only one DLL copy.
+
+Requires Sprocket 0.2.55.5 and BepInEx 6 IL2CPP (verified 6.0.0-be.788). Loader not included. Start the loader once before installing. Back up vehicle saves and previous mod files.
+
+Examples are separate; do not copy default-shells.json over your installed custom catalog unless you intentionally want to replace your custom shells. Existing profiles/config/WAV overrides are preserved by the package.
+
+To apply new stock-style motor tuning to an old ATGM profile, edit that profile with the game closed: launchSpeed=50, acceleration=150, motorDelay=0.12, motorBurnTime=4, coastDeceleration=1, flightSpeed=200. Keep its other required fields and identity. Gun-launched examples instead use launchSpeedMode=cannon, launchSpeedMultiplier=0.2 and motorDelay=0.08. Full examples/ranges are in CUSTOM-SHELLS.md.
+
+Burn time 0 means unlimited burn; missing burn/coast fields keep legacy behavior. Only the newest missile per vehicle is guided. Custom WAV overrides take priority over the embedded sounds. Move/back up an old override to hear the bundled audio.
+
+Rollback may require restoring both the previous DLL and matching shell JSON/CFG backups. Before uninstalling select vanilla ammunition on affected cannons and save, then remove only this mod's DLL. Keep configuration/audio backups and unrelated mods.

@@ -2,7 +2,7 @@
 
 A vibe-coded BepInEx IL2CPP plugin that adds **APFSDS long/short rod, APHE, HE, HEAT, HESH and guided ATGM** profiles to Sprocket.
 
-Built with AI assistance. **v0.10.0** adds sight-guided and keyboard-guided ATGM profiles with JSON-configurable launch speed and motor acceleration. Both guidance modes were accepted in user gameplay testing; the new motor settings were also accepted in user gameplay testing. Existing shell mechanics remain unchanged.
+Built with AI assistance. **v0.11.0** bundles AI missile aiming/guidance, finite motor burn and coasting, a gun-launched SACLOS example and separate launcher/gun-launched sounds. The latest gun-launched sound has its level matched to the launcher sound, a shorter fade-in and its silent tail removed. Player guidance and AI aiming were accepted in gameplay testing; exact audible balance against stock cannon fire can vary and has not been comprehensively checked.
 
 ## Requirements
 
@@ -32,6 +32,7 @@ Updating adds missing release presets while preserving existing profiles, with a
 | HEAT | High first-plate penetration and powerful fragments in a narrow cone. |
 | HESH | Heavy, broad spall against simpler armour; less first-plate penetration than HEAT. |
 | SACLOS ATGM | Sight-guided gameplay proxy, chemical HEAT impact; nominal 600 mm at 135 mm calibre. |
+| Gun-launched SACLOS ATGM | Charge-dependent launch speed; same sight guidance and HEAT warhead. |
 | MCLOS ATGM | Manually steer with WASD; tank controls blocked during the controllable missile flight. |
 
 These are **gameplay approximations**, not physical shaped-charge, erosion or backface-scabbing simulations. All profiles scale with full gun calibre. APFSDS spall increases as remaining penetration decreases; its cone can widen by up to 15% with remaining energy. Long/short rod also differ in calculated mass/speed and a length-based efficiency/cone modifier. Native projectile paths remain in use for non-ATGM shells; ATGM flight is steered before native movement and collision processing.
@@ -52,12 +53,14 @@ Shell selection applies to cannons sharing a blueprint and overrides loaded AP/A
 
 ## Guided ATGMs
 
-Select the missile profile **on the cannon** and test in live play. Both examples are available at any calibre: chemical penetration scales from 600 mm at 135 mm; flight speed is configured separately. They reuse HEAT impact and spaced-armour mechanics.
+Select the missile profile **on the cannon** and test in live play. All examples are available at any calibre: chemical penetration scales from 600 mm at 135 mm; flight speed is configured separately. They reuse HEAT impact and spaced-armour mechanics.
 
 - **SACLOS ATGM:** steer by moving the scope or third-person reticle. Keep controlling the launching vehicle. Reloading does not disable guidance.
 - **MCLOS ATGM:** enter your preferred view before firing, then use **W/S** for up/down and **A/D** for left/right. Mouse aim does not steer it. Driving, aiming and firing commands are blocked during the controllable missile flight; controls return after impact, expiry or loss of the launcher. The tank can coast. General camera/UI processing remains available, but vehicle actions such as scope toggling are blocked.
 - Only the newest missile per vehicle receives commands. Switching vehicles stops new commands; the missile continues on its last heading. No input-action maps are permanently disabled.
-- Fresh examples launch at **50 m/s**, accelerate at **150 m/s²** after **0.15 s**, and cap at **200 m/s**. These are editable gameplay defaults, not measured Konkurs launch/motor data.
+- Fresh examples launch at **50 m/s**, accelerate at **150 m/s²** after **0.12 s**, and cap at **200 m/s**. Motor burn lasts **4 s**, followed by **1 m/s²** coast loss. The gun-launched example uses a **0.08 s** delay and charge-dependent launch speed. These are editable gameplay defaults, not measured Konkurs launch/motor data.
+
+AI uses native target selection and estimated target motion, with missile lead instead of artillery drop compensation. It guides both SACLOS and MCLOS profiles. Only the newest missile per vehicle is guided: allow it to reach the target before another launcher fires.
 
 See [ATGM settings and testing](ATGM.md) and [custom shell profiles](CUSTOM-SHELLS.md). There is no target lock, fire-and-forget seeker, top attack, missile camera, new launcher mesh, smoke trail or tandem warhead. ATGM explosions are visual HEAT effects, not additional independent HE blast damage.
 
@@ -73,7 +76,7 @@ HE is live-firing only and omitted from the simulator list. Explosion visuals ar
 
 ## Custom shells
 
-See [Making your own shell profiles](CUSTOM-SHELLS.md). **Any unique ID can now use `"behavior": "apfsds"`** and receive the full rod behavior. The same applies to APHE, HE, HEAT, HESH and ATGM. Copy the long/short rod examples to create your own rods.
+See [Making your own shell profiles](CUSTOM-SHELLS.md). **Any unique ID can now use `"behavior": "apfsds"`** and receive the full rod behavior. The same applies to APHE, HE, HEAT, HESH and ATGM (`atgm` / `atgm_gun`). Copy the long/short rod examples to create your own rods.
 
 ## Configuration
 
@@ -143,5 +146,30 @@ Created by RoanWassink with AI assistance. The native inspector integration foll
 
 [MIT](LICENSE), covering this plugin's code.
 
-Donations
-For ChatGPT budget. Helps me reverse engineer sprocket to add cool mods. https://www.paypal.com/donate/?hosted_button_id=7PE3SDBETXFQ6
+## ATGM launch audio
+
+Launcher-style missiles use the supplied TOW-style recording; gun-launched missiles use a separate supplied recording. Both are embedded and processed to mono. The latest gun-launched clip is normalized to the launcher clip's average level, with a shorter fade-in and silent tail removed. Non-ATGM shells use native cannon sounds. Native positional attenuation and mixer settings remain in use; a matched offline level does not guarantee identical perceived loudness in-game.
+
+In `nl.roan.sprocket.shellselector.cfg`, `[ATGM Audio] Enabled` enables replacement (default true), and `VolumeMultiplier` adjusts gain (0–2, default 1). Restart after changes. Optional PCM16 mono/stereo WAV overrides go in `BepInEx/config/sprocket.shellselector.audio/atgm.wav` and `atgm_gun.wav`. Existing overrides take priority.
+
+Both recordings were supplied by RoanWassink, who confirmed they are their own. See [audio settings and provenance](audio/README.md). Existing custom WAV overrides take priority: move/back up an old override if you want to hear the newly bundled sound, rather than deleting it automatically.
+
+## Update, FAQ and uninstall
+
+The installation ZIP contains the DLL under `BepInEx/plugins` and examples separately. It does not replace your installed shell JSON, spall settings, plugin CFG or custom audio. Close Sprocket before replacing the DLL; keep one copy.
+
+**Why do my existing missiles still fly like the old preset?** Existing values are preserved. New missing motor fields retain legacy equivalents, including unlimited burn (`motorBurnTime = 0`) and no coast loss. Copy the desired motor fields from [CUSTOM-SHELLS.md](CUSTOM-SHELLS.md#custom-atgms) into your existing profile with the game closed, then restart. Do not replace your entire catalog just to update one missile.
+
+**Why did my AI missile stop tracking when another launcher fired?** Only the newest missile per vehicle is guided. All launchers on that vehicle share this limit. Allow impact before the next launch; shorter reload intervals can supersede earlier missiles. There is no independent per-launcher guidance channel.
+
+**How do I make a shorter-range powered missile?** Set a finite motorBurnTime and positive coastDeceleration, then tune maximumFlightTime. Burn time 0 means unlimited burn, not no motor. Lifetime expiry releases the missile without adding a detonation. Guidance delay and motor delay are separate settings.
+
+**Why does changing propellant affect a gun-launched missile?** Its cannon launch mode uses native cannon muzzle speed times launchSpeedMultiplier, capped at flightSpeed. The motor acceleration and chemical penetration remain independently configured. Launcher-style fixed launch mode does not use cannon launch speed.
+
+**Can I supply different sounds?** Put PCM16 WAV files at the override paths above and restart. Use Enabled=false for native sound or VolumeMultiplier=0–2 to adjust the custom sample gain. No separate audio installation is needed for default sounds.
+
+To roll back, close the game and restore the old DLL **and matching shell JSON/CFG backups**; older builds may reject new fields. Before uninstalling, select vanilla ammunition on affected cannons and save your tanks. Remove only this plugin DLL; keep your custom config/audio backups and unrelated mods. Without the plugin, custom shell mechanics are unavailable.
+
+## Donations
+
+Support my ChatGPT budget and help me reverse engineer Sprocket to make more mods: [Donate via PayPal](https://www.paypal.com/donate/?hosted_button_id=7PE3SDBETXFQ6).

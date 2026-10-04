@@ -5,7 +5,7 @@ using HarmonyLib;
 using Il2CppInterop.Runtime;
 using UnityEngine.Events;
 namespace SprocketShellSelector;
-[BepInPlugin("nl.roan.sprocket.shellselector", "Sprocket Shell Selector", "0.10.0")]
+[BepInPlugin("nl.roan.sprocket.shellselector", "Sprocket Shell Selector", "0.11.0")]
 [BepInDependency("nl.roan.sprocket.materialselector", BepInDependency.DependencyFlags.SoftDependency)]
 public sealed class Plugin : BasePlugin
 {
@@ -29,7 +29,7 @@ public sealed class Plugin : BasePlugin
             Log.LogError($"Shell selector disabled: {ex}");
             return;
         }
-        Log.LogInfo("Sprocket Shell Selector v0.10.0 loaded; shell and spall/APHE patches loaded.");
+        Log.LogInfo("Sprocket Shell Selector v0.11.0 loaded; shell and spall/APHE patches loaded.");
         var atgmHarmony=new Harmony("nl.roan.sprocket.shellselector.atgm");
         try
         {
@@ -37,6 +37,16 @@ public sealed class Plugin : BasePlugin
             if(RuntimeAtgm.Enabled){atgmHarmony.PatchAll(typeof(RuntimeAtgm));RuntimeAtgm.Ready=true;Log.LogInfo("[ATGM] Experimental native flight/player-ray/scope hooks loaded.");}
         }
         catch(Exception ex){atgmHarmony.UnpatchSelf();RuntimeAtgm.Ready=false;Log.LogError("[ATGM] Optional flight guidance unavailable; other shell hooks remain active: "+ex);}
+        var audioHarmony=new Harmony("nl.roan.sprocket.shellselector.atgmaudio");
+        try
+        {
+            RuntimeLaunchAudio.Configure(Config);
+            if(RuntimeLaunchAudio.Enabled){RuntimeLaunchAudio.PreloadClips();audioHarmony.PatchAll(typeof(RuntimeLaunchAudio));Log.LogInfo("[ATGM audio] Supplied TOW launch sound enabled for launcher and gun-launched missiles.");}
+        }
+        catch(Exception ex){audioHarmony.UnpatchSelf();Log.LogWarning("[ATGM audio] Optional launch audio unavailable; native sounds retained: "+ex.Message);}
+        var aiHarmony=new Harmony("nl.roan.sprocket.shellselector.atgmai");
+        try{aiHarmony.PatchAll(typeof(RuntimeAtgmAi));Log.LogInfo("[ATGM AI] Scoped native aiming hooks loaded.");}
+        catch(Exception ex){aiHarmony.UnpatchSelf();Log.LogWarning("[ATGM AI] Optional AI guidance unavailable: "+ex.Message);}
         var simulatorHarmony = new Harmony("nl.roan.sprocket.shellselector.simulator");
         try
         {

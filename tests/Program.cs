@@ -284,7 +284,7 @@ foreach(var invalid in new[]{copied with{Behavior="unknown"},copied with{Behavio
 Console.WriteLine($"v0.9.0 EXPERIMENT PASS: {checks} checks.");
 if(args.Length>0){
  var presets=ShellProfiles.Parse(File.ReadAllText(args[0]));
- Check(presets.Count is 5 or 6 or 7 or 8,"preset file loads");
+ Check(presets.Count is 5 or 6 or 7 or 8 or 9,"preset file loads");
  Check(presets.Count(p=>p.Behavior=="apfsds")==2,"two APFSDS variants load");
  Check(presets.Any(p=>p.Behavior=="he")&&presets.Any(p=>p.Behavior=="heat")&&presets.Any(p=>p.Behavior=="hesh"),"all payload examples present");
  Console.WriteLine($"PRESETS PASS: {checks} checks.");
@@ -336,7 +336,7 @@ Check(ShellBalance.FragmentVolume("hesh",100)>ShellBalance.FragmentVolume("aphe"
 Check(ShellBalance.FragmentVolume("aphe",100)>ShellBalance.FragmentVolume("heat",100),"APHE broad damage HEAT concentrated damage");
 Console.WriteLine($"v0.9.3 PAYLOAD PASS: {checks} checks.");
 var releaseDefaults=ShellProfiles.Parse(ReleaseProfiles.Defaults());
-Check(releaseDefaults.Count==8 && !releaseDefaults.Any(p=>p.Id=="apfsds"),"test release has eight presets without standard dart");
+Check(releaseDefaults.Count==9 && !releaseDefaults.Any(p=>p.Id=="apfsds"),"test release has nine presets without standard dart");
 Check(releaseDefaults.Count(p=>p.Behavior=="apfsds")==2,"release includes long and short rods");
 Check(ShellProfiles.Resolve("apfsds",false,releaseDefaults)=="apfsds_long","old dart saves map to long rod");
 Check(ShellProfiles.Resolve(null,true,releaseDefaults)=="apfsds_long","legacy selected flag maps to long rod");
@@ -345,7 +345,7 @@ try{
  var path=Path.Combine(upgradeDir,"profiles.json");File.WriteAllText(path,profileJson);
  Check(ReleaseProfiles.Upgrade(path),"old config upgraded");
  var upgraded=ShellProfiles.Parse(File.ReadAllText(path));
- Check(upgraded.Count==8 && !upgraded.Any(p=>p.Id=="apfsds"),"stock old dart removed while new presets added");
+ Check(upgraded.Count==9 && !upgraded.Any(p=>p.Id=="apfsds"),"stock old dart removed while new presets added");
  Check(upgraded.Single(p=>p.Id=="aphe").Settings==profileList[1].Settings,"existing APHE tuning preserved");
  Check(File.ReadAllText(path+".pre-v094-backup")==profileJson,"upgrade backs up exact config");
  Check(!ReleaseProfiles.Upgrade(path),"release upgrade idempotent");
@@ -470,7 +470,7 @@ try
  var path=Path.Combine(upgradeAtgmDir,"shells.json");var original=originalNode.ToJsonString();File.WriteAllText(path,original);
  Check(ReleaseProfiles.Upgrade(path),"existing v0.9.8 config gains ATGM example");
  var upgraded=ShellProfiles.Parse(File.ReadAllText(path));
- Check(upgraded.Count==8 && upgraded.Single(p=>p.Id=="heat").ChemicalPenetrationMm==555,"ATGM migration preserves user HEAT tuning");
+ Check(upgraded.Count==9 && upgraded.Single(p=>p.Id=="heat").ChemicalPenetrationMm==555,"ATGM migration preserves user HEAT tuning");
  Check(File.ReadAllText(path+".pre-v094-backup")==original && !ReleaseProfiles.Upgrade(path),"ATGM migration backs up exact input and is idempotent");
 }finally{Directory.Delete(upgradeAtgmDir,true);}
 Console.WriteLine($"ATGM TEST 1 PASS: {checks} checks.");
@@ -479,7 +479,7 @@ var beamTarget=AtgmGuidance.AimAlongRay(System.Numerics.Vector3.Zero,forward,dis
 Check(beamTarget==new System.Numerics.Vector3(0,0,1700),"sight-ray guidance remains forward beyond fixed scope convergence distance");
 var movingOrigin=new System.Numerics.Vector3(100,0,0);
 Check(AtgmGuidance.AimAlongRay(movingOrigin,forward,new(120,0,1000),200)==new System.Numerics.Vector3(100,0,1200),"beam aim respects launcher translation and corrects lateral error");
-foreach(var existing in releaseDefaults.Where(p=>p.Behavior!="atgm"))
+foreach(var existing in releaseDefaults.Where(p=>!ShellBalance.IsAtgm(p.Behavior)))
  Check(ShellBalance.Calculate(135,800,1800,existing)==ShellBallistics.Calculate(135,800,1800,ShellBalance.BallisticSettings(existing)),"existing profile ballistics are unchanged by ATGM launch path");
 Console.WriteLine($"ATGM FINAL PASS: {checks} checks.");
 Check(AtgmGuidance.FreshAim(10,9.9),"recent player aim remains usable during reload");
@@ -505,17 +505,18 @@ Check(System.Numerics.Vector3.Distance(kbSub,System.Numerics.Vector3.Normalize(A
 Check(float.IsFinite(AtgmGuidance.KeyboardStep(System.Numerics.Vector3.UnitY,0,1,keyboardSettings,.02).Z),"vertical missile heading remains finite");
 Console.WriteLine($"ATGM TEST 3 PASS: {checks} checks.");
 
+var motorTestSettings=flightSettings with {MotorDelay=.15,MotorBurnTime=0,CoastDeceleration=0};
 Check(AtgmGuidance.InitialSpeed(flightSettings,800)==50,"fixed motor launch speed ignores cannon charge");
 var chargeFlight=flightSettings with {LaunchSpeedMode="cannon",LaunchSpeedMultiplier=.2};
 Check(AtgmGuidance.InitialSpeed(chargeFlight,400)==80 && AtgmGuidance.InitialSpeed(chargeFlight,800)==160,"cannon mode follows native muzzle velocity and multiplier");
 Check(AtgmGuidance.InitialSpeed(chargeFlight,2000)==200 && AtgmGuidance.InitialSpeed(chargeFlight,0)==10,"cannon launch speed has finite lower and cruise caps");
-Check(AtgmGuidance.SpeedAtAge(flightSettings,50,.1)==50 && AtgmGuidance.SpeedAtAge(flightSettings,50,.15)==50,"motor delay preserves launch speed");
-Check(Math.Abs(AtgmGuidance.SpeedAtAge(flightSettings,50,.65)-125)<1e-9 && AtgmGuidance.SpeedAtAge(flightSettings,50,10)==200,"motor acceleration follows elapsed flight time and cruise cap");
-Check(AtgmGuidance.SpeedAtAge(flightSettings with {Acceleration=0},50,10)==50,"zero acceleration preserves chosen launch speed");
+Check(AtgmGuidance.SpeedAtAge(motorTestSettings,50,.1)==50 && AtgmGuidance.SpeedAtAge(motorTestSettings,50,.15)==50,"motor delay preserves launch speed");
+Check(Math.Abs(AtgmGuidance.SpeedAtAge(motorTestSettings,50,.65)-125)<1e-9 && AtgmGuidance.SpeedAtAge(motorTestSettings,50,10)==200,"motor acceleration follows elapsed flight time and cruise cap");
+Check(AtgmGuidance.SpeedAtAge(motorTestSettings with {Acceleration=0},50,10)==50,"zero acceleration preserves chosen launch speed");
 Check(AtgmGuidance.InitialSpeed(new AtgmSettings(FlightSpeed:300),800)==300 && AtgmGuidance.SpeedAtAge(new AtgmSettings(FlightSpeed:300),300,10)==300,"omitted motor fields retain legacy constant speed");
 var oldAtgmNode=System.Text.Json.Nodes.JsonNode.Parse(ReleaseProfiles.Defaults())!;
 foreach(var node in oldAtgmNode["profiles"]!.AsArray().Where(n=>n!["behavior"]?.GetValue<string>()=="atgm"))
- foreach(var name in new[]{"launchSpeed","launchSpeedMode","launchSpeedMultiplier","acceleration","motorDelay"})node!.AsObject().Remove(name);
+ foreach(var name in new[]{"launchSpeed","launchSpeedMode","launchSpeedMultiplier","acceleration","motorDelay","motorBurnTime","coastDeceleration"})node!.AsObject().Remove(name);
 Check(ShellProfiles.Parse(oldAtgmNode.ToJsonString()).Where(p=>p.Behavior=="atgm").All(p=>p.Atgm is {LaunchSpeed:null,Acceleration:0,MotorDelay:0}),"old custom ATGM configs parse without changing flight");
 foreach(var invalidMotor in new[]{flightSettings with {LaunchSpeed=201},flightSettings with {LaunchSpeed=double.NaN},flightSettings with {LaunchSpeedMode="charge"},flightSettings with {Acceleration=-1},flightSettings with {LaunchSpeedMultiplier=0},flightSettings with {MotorDelay=6}})
 {
@@ -534,3 +535,35 @@ try
  Check(File.ReadAllText(path+".pre-v094-backup")==before && !ReleaseProfiles.Upgrade(path),"motor migration has exact backup and is idempotent");
 }finally{Directory.Delete(motorMigrationDir,true);}
 Console.WriteLine($"RELEASE CANDIDATE PASS: {checks} checks.");
+
+var gunMissile=releaseDefaults.Single(p=>p.Id=="atgm_gun_saclos");
+Check(gunMissile.Behavior=="atgm_gun" && gunMissile.Atgm is {GuidanceMode:"sight",LaunchSpeedMode:"cannon"},"gun-launched example parses complete guidance and motor settings");
+Check(ShellBalance.ImpactBehavior(gunMissile)=="heat" && ShellBalance.Calculate(135,800,1800,gunMissile).Velocity==160,"gun missile uses chemical impact and charge-dependent launch");
+Check(Math.Abs(ShellBalance.ChemicalPenetration(gunMissile,135)-600)<1e-9 && Math.Abs(ShellBalance.SpacedRetention(gunMissile,135,20,250)-ShellBalance.SpacedRetention(konkurs,135,20,250))<1e-12,"gun-launch audio type retains original warhead and airgap mechanics");
+Check(ShellProfiles.Parse(ReleaseProfiles.Defaults()).Single(p=>p.Id==gunMissile.Id).Atgm==gunMissile.Atgm,"gun missile settings round-trip from embedded JSON");
+Console.WriteLine($"ATGM AUDIO TYPE PASS: {checks} checks.");
+
+foreach(var sound in new[]{"atgm","atgm_gun"})
+{
+ using var stream=typeof(ShellProfiles).Assembly.GetManifestResourceStream($"ShellSelector.Audio.{sound}.wav")!;
+ var decoded=PcmWave.Read(stream);
+ Check(decoded.Frequency==48000 && decoded.Channels==1 && decoded.Samples.Length>48000,"bundled launch WAV decodes as 48kHz mono");
+ Check(decoded.Samples.All(float.IsFinite) && decoded.Samples.Max(Math.Abs)<.85f,"launch WAV samples are finite and not clipped");
+ Check(Math.Abs(decoded.Samples[0])<.001 && Math.Abs(decoded.Samples[^1])<.001,"launch WAV has smooth silence at both endpoints");
+}
+using(var invalidWave=new MemoryStream(new byte[16]))
+{
+ var rejected=false;try{PcmWave.Read(invalidWave);}catch(InvalidDataException){rejected=true;}
+ Check(rejected,"invalid replacement WAV fails safely before upload");
+}
+Console.WriteLine($"LAUNCH AUDIO PASS: {checks} checks.");
+
+var flatAi=AtgmGuidance.AiIntercept(new(0,0,1000),System.Numerics.Vector3.Zero,System.Numerics.Vector3.Zero,flightSettings);
+Check(flatAi==new System.Numerics.Vector3(0,0,1000),"AI missile aim has no artillery elevation for stationary target");
+var movingAi=AtgmGuidance.AiIntercept(new(0,0,1000),new(10,0,0),System.Numerics.Vector3.Zero,flightSettings);
+Check(movingAi.X>49 && movingAi.X<51 && movingAi.Y==0,"AI missile lead uses its native estimated velocity without adding shell drop");
+var burnout=flightSettings with {MotorDelay=.1,MotorBurnTime=1,Acceleration=150,CoastDeceleration=5};
+Check(AtgmGuidance.SpeedAtAge(burnout,50,1.1)==200 && AtgmGuidance.SpeedAtAge(burnout,50,3.1)==190,"finite boost ends then coasting speed decays");
+Check(AtgmGuidance.SpeedAtAge(burnout,50,100)==10,"coast model retains a finite minimum speed");
+Check(AtgmGuidance.SpeedAtAge(burnout with {MotorBurnTime=0},50,100)==200,"zero burn time preserves old sustained motor semantics");
+Console.WriteLine($"AI / FLIGHT PASS: {checks} checks.");
