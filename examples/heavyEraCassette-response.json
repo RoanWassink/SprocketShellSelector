@@ -1,0 +1,65 @@
+{
+  "responseId": "heavyEraCassette",
+  "kind": "heavyEra",
+  "compatibleMaterialIds": [
+    "cwepHeavyEraCassette"
+  ],
+  "minimumEra": "coldwar",
+  "historicalDate": "1985.01.01",
+  "status": "candidate",
+  "passiveMaterial": {
+    "density": 4000,
+    "rhaFactor": 0.55,
+    "spallFactor": 0.25,
+    "requestedCostMultiplier": 10.5
+  },
+  "calibration": {
+    "heatRetention": 0.5,
+    "intactRodRetention": 0.85,
+    "disturbedRodRetention": 0.85,
+    "disturbanceContribution": 0
+  },
+  "geometry": {
+    "mode": "declaredCassette",
+    "minNormalThicknessMm": 60,
+    "maxNormalThicknessMm": 80,
+    "angularCurve": [
+      {
+        "angleDegrees": 0,
+        "weight": 1
+      },
+      {
+        "angleDegrees": 60,
+        "weight": 1
+      },
+      {
+        "angleDegrees": 80,
+        "weight": 0
+      }
+    ],
+    "kineticAngularCurve": [
+      {
+        "angleDegrees": 0,
+        "weight": 0
+      },
+      {
+        "angleDegrees": 30,
+        "weight": 1
+      },
+      {
+        "angleDegrees": 60,
+        "weight": 1
+      },
+      {
+        "angleDegrees": 80,
+        "weight": 0
+      }
+    ],
+    "measuredGapCurve": [],
+    "minMeasuredGapMm": 0,
+    "maxMeasuredGapMm": 0
+  },
+  "era": {
+    "cellPitchM": 0.25
+  }
+}

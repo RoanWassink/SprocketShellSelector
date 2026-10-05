@@ -197,3 +197,6 @@ Old custom ATGMs without motor fields retain constant flightSpeed. Migration wri
 See [ATGM.md](ATGM.md) for controls, guidance references and rollback.
 
 Before ignition, native ballistics are used; at ignition actual speed and heading are captured as the powered phase starts. The curve describes commanded speed, not a physical thrust/fuel model. Missing burn/coast fields default to zero and preserve legacy sustained power. Default examples use burn time 4 s and coast loss 1 m/s². Both ATGM behaviors share guidance and HEAT impact; their audio can be overridden independently.
+
+## Era availability in v0.12.3-heavyera.1
+Profiles can declare minimumEra as ww1/interwar/earlywar/midwar/latewar/coldwar. An omitted/null value uses the behavior floor. AP/HE begin in WWI; APHE/HEAT in Earlywar; HESH/APFSDS/ATGM/gun-launched ATGM in Coldwar. minimumEra can delay a profile but cannot bypass that floor. A profile stored on an imported earlier-era cannon retains its saved identity; an unavailable profile does not grant its modern effect there. Back up your JSON, add the field only to supported current consumers, then restart.

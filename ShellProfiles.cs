@@ -6,7 +6,7 @@ internal sealed record ShellProfile(string Id, string Label, DartSettings Settin
     string Behavior = "ap", double ChemicalPenetrationMm = 0,
     double NativeExplosivePower = 0, double SpallMultiplier = 1,
     double ConeHalfAngleDegrees = 90, double ExplosionScale = 1, double SecondPlatePenetrationFactor = .15,
-    double AirGapLossPerCalibre = .35, double ReferenceCalibreMm = 100, AtgmSettings? Atgm = null);
+    double AirGapLossPerCalibre = .35, double ReferenceCalibreMm = 100, AtgmSettings? Atgm = null,string? MinimumEra=null);
 
 // Managed data only: the same validation runs before UI, previews and native shots.
 internal static class ShellProfiles
@@ -20,7 +20,7 @@ internal static class ShellProfiles
         "penetrationQuality", "fragmentDamageMultiplier"
     };
     private static readonly HashSet<string> Optional = new(StringComparer.Ordinal)
-    { "behavior", "chemicalPenetrationMm", "nativeExplosivePower", "spallMultiplier", "coneHalfAngleDegrees", "explosionScale", "secondPlatePenetrationFactor", "airGapLossPerCalibre", "referenceCalibreMm", "flightSpeed", "maxTurnRate", "maximumFlightTime", "guidanceDelay", "guidanceMode", "launchSpeed", "launchSpeedMode", "launchSpeedMultiplier", "acceleration", "motorDelay", "motorBurnTime", "coastDeceleration" };
+    { "minimumEra", "behavior", "chemicalPenetrationMm", "nativeExplosivePower", "spallMultiplier", "coneHalfAngleDegrees", "explosionScale", "secondPlatePenetrationFactor", "airGapLossPerCalibre", "referenceCalibreMm", "flightSpeed", "maxTurnRate", "maximumFlightTime", "guidanceDelay", "guidanceMode", "launchSpeed", "launchSpeedMode", "launchSpeedMultiplier", "acceleration", "motorDelay", "motorBurnTime", "coastDeceleration" };
 
     internal static IReadOnlyList<ShellProfile> Parse(string json)
     {
@@ -66,6 +66,12 @@ internal static class ShellProfiles
                     TextOption("guidanceMode","sight"), item.TryGetProperty("launchSpeed",out var launch) ? ReadNumber("launchSpeed",launch) : null,
                     TextOption("launchSpeedMode","fixed"),Option("launchSpeedMultiplier",1),Option("acceleration",0),Option("motorDelay",0),Option("motorBurnTime",0),Option("coastDeceleration",0)) : null);
             ShellPayload.Validate(profile);
+            if(item.TryGetProperty("minimumEra",out var era))
+            {
+                var minimum=era.ValueKind==JsonValueKind.String?era.GetString():null;
+                if(ShellEraPolicy.Rank(minimum)<0)throw new FormatException($"Profile '{id}': invalid minimumEra.");
+                profile=profile with {MinimumEra=minimum};
+            }
             result.Add(profile);
         }
         return result;

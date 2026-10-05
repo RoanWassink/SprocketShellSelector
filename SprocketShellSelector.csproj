@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <Import Project="SprocketMod.props" />
-  <PropertyGroup><AssemblyName>SprocketShellSelector</AssemblyName><RootNamespace>SprocketShellSelector</RootNamespace><PlatformTarget>x64</PlatformTarget><Version>0.11.0</Version></PropertyGroup>
+  <PropertyGroup><AssemblyName>SprocketShellSelector</AssemblyName><RootNamespace>SprocketShellSelector</RootNamespace><PlatformTarget>x64</PlatformTarget><Version>0.12.3-heavyera.1</Version></PropertyGroup>
   <ItemGroup><Compile Remove="tests\**\*.cs;work\**\*.cs;outputs\**\*.cs" /></ItemGroup>
   <ItemGroup><EmbeddedResource Include="default-shells.json" LogicalName="ShellSelector.Defaults" /></ItemGroup>
   <ItemGroup><EmbeddedResource Include="audio\atgm.wav" LogicalName="ShellSelector.Audio.atgm.wav" /><EmbeddedResource Include="audio\atgm_gun.wav" LogicalName="ShellSelector.Audio.atgm_gun.wav" /></ItemGroup>

@@ -22,3 +22,4 @@
     <Error Text="GameDir '$(GameDir)' has no working Sprocket BepInEx 6 IL2CPP installation. Start the working Sprocket Mod Loader once first." />
   </Target>
 </Project>
+

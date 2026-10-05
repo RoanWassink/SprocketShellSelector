@@ -1,0 +1,12 @@
+{
+  "v": "0.0",
+  "id": "",
+  "type": "cwepPassiveComposite",
+  "date": "1945.09.03",
+  "properties": {
+    "rhaFactor": 0.55,
+    "density": 3800,
+    "spallFactor": 0.1,
+    "costMultiplier": 6
+  }
+}

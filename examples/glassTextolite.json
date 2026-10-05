@@ -1,0 +1,12 @@
+{
+  "v": "0.0",
+  "id": "",
+  "type": "cwepGlassTextolite",
+  "date": "1945.09.03",
+  "properties": {
+    "rhaFactor": 0.25,
+    "density": 1850,
+    "spallFactor": 0,
+    "costMultiplier": 6.5
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "v": "0.0",
+  "id": "",
+  "type": "cwepLightEraCassette",
+  "date": "1945.09.03",
+  "properties": {
+    "rhaFactor": 0.35,
+    "density": 4300,
+    "spallFactor": 0.25,
+    "costMultiplier": 8.25
+  }
+}

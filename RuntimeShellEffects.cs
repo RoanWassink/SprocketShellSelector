@@ -11,6 +11,7 @@ internal static class RuntimeShellEffects
     {
         __state=null;
         var context=RuntimeSpall.Impact;
+        if(context?.ArmourEffectPlaying==true)return;
         if(context is not {LiveImpact:true} || context.Behavior is not ("aphe" or "heat" or "hesh" or "he") || (__0.Type & ProjectileEffectType.Explosion)==0)return;
         var assets=__instance.explosionAssets;
         if(assets==null)return;
@@ -32,6 +33,20 @@ internal static class RuntimeShellEffects
     private static void Play(ProjectileEffectConfig __instance,ProjectileEffectInfo __0)
     {
         var context=RuntimeSpall.Impact;
+        if(context?.ArmourEffectPlaying==true)return;
+        if(context is {LiveImpact:true} && context.ArmourExplosions.Count>0)
+        {
+            var positions=context.ArmourExplosions.ToArray();context.ArmourExplosions.Clear();
+            context.ArmourEffectPlaying=true;
+            try
+            {
+                foreach(var position in positions)
+                    __instance.PlayEffect(new ProjectileEffectInfo {Type=ProjectileEffectType.Explosion,Position=position,
+                        HitNormal=__0.HitNormal,HitVelocity=__0.HitVelocity,Parent=__0.Parent,Calibre=35});
+            }
+            catch(Exception ex){Plugin.ModLog.LogWarning("[ERA] Visual unavailable: "+ex.Message);}
+            finally{context.ArmourEffectPlaying=false;}
+        }
         if(context is {LiveImpact:true,ChemicalVisualPlayed:false} && context.Behavior is "heat" or "hesh" && (__0.Type & ProjectileEffectType.Explosion)==0)
         { context.ChemicalVisualPlayed=true; context.ExplosionPending=true; context.ExplosionPosition=__0.Position; }
         if(context is not {LiveImpact:true,ExplosionPending:true} || context.Behavior is not ("aphe" or "heat" or "hesh"))return;

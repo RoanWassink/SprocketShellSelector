@@ -85,3 +85,4 @@ internal static class SpallBalance
         Validate(s); return s;
     }
 }
+

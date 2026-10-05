@@ -12,9 +12,13 @@ internal sealed class ShellImpactContext
     internal readonly HashSet<IntPtr> PayloadBursts = new();
     internal readonly Dictionary<IntPtr,ChemicalLayers> Layers = new();
     internal float GunDiameter;
+    internal string? FiringEra;
+    internal double ChemicalBudget;
     internal bool LiveImpact;
     internal bool ExplosionPending;
     internal UnityEngine.Vector3 ExplosionPosition;
+    internal readonly List<UnityEngine.Vector3> ArmourExplosions=new();
+    internal bool ArmourEffectPlaying;
 }
 [HarmonyPatch]
 internal static class RuntimeSpall
@@ -83,12 +87,12 @@ internal static class RuntimeSpall
             var p=context.Profile!;
             var diameter=context.Behavior=="heat" ? context.GunDiameter*.05f : penetrator.Diameter;
             var mass=context.Behavior=="heat" ? penetrator.Mass*.05f : penetrator.Mass;
-            var budget=ShellBalance.ChemicalPenetration(p,context.GunDiameter*1000);
+            var budget=context.ChemicalBudget;
             var speed=PenetrationUtils.ComputeRequiredPenetrationSpeed(diameter*1000,mass,(float)budget,penetrator.PenetratorConstant);
             if(!float.IsFinite(speed)||speed<=0)return;
             penetrator=new PenetratorInfo(mass,diameter,penetrator.Density,0,penetrator.PenetratorConstant,penetrator.Position,penetrator.Velocity.normalized*speed);
             context.ChemicalInitialized=true;
-            Plugin.ModLog.LogInfo($"[Chemical] {context.Behavior} equivalent penetrator {budget:0}mm RHA; impact-speed-independent proxy");
+            Plugin.ModLog.LogInfo($"[Chemical] profile={p.Id} firingEra={context.FiringEra} equivalent penetrator {budget:0}mm RHA; impact-speed-independent proxy");
             return;
         }
         if(context?.Behavior is "heat" or "hesh")

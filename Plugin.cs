@@ -5,7 +5,7 @@ using HarmonyLib;
 using Il2CppInterop.Runtime;
 using UnityEngine.Events;
 namespace SprocketShellSelector;
-[BepInPlugin("nl.roan.sprocket.shellselector", "Sprocket Shell Selector", "0.11.0")]
+[BepInPlugin("nl.roan.sprocket.shellselector", "Sprocket Shell Selector", "0.12.3")]
 [BepInDependency("nl.roan.sprocket.materialselector", BepInDependency.DependencyFlags.SoftDependency)]
 public sealed class Plugin : BasePlugin
 {
@@ -29,7 +29,10 @@ public sealed class Plugin : BasePlugin
             Log.LogError($"Shell selector disabled: {ex}");
             return;
         }
-        Log.LogInfo("Sprocket Shell Selector v0.11.0 loaded; shell and spall/APHE patches loaded.");
+        Log.LogInfo("Sprocket Shell Selector v0.12.3 HEAVY ERA REVIEW 1 loaded; armour.2 and accepted ATGM/trail hooks retained.");
+        var armourHarmony=new Harmony("nl.roan.sprocket.shellselector.armourresponses");
+        try{if(RuntimeArmourResponses.Configure())armourHarmony.PatchAll(typeof(RuntimeArmourResponses));}
+        catch(Exception ex){armourHarmony.UnpatchSelf();Log.LogWarning("[Armour response] Optional adapter disabled: "+ex.Message);}
         var atgmHarmony=new Harmony("nl.roan.sprocket.shellselector.atgm");
         try
         {
@@ -47,10 +50,14 @@ public sealed class Plugin : BasePlugin
         var aiHarmony=new Harmony("nl.roan.sprocket.shellselector.atgmai");
         try{aiHarmony.PatchAll(typeof(RuntimeAtgmAi));Log.LogInfo("[ATGM AI] Scoped native aiming hooks loaded.");}
         catch(Exception ex){aiHarmony.UnpatchSelf();Log.LogWarning("[ATGM AI] Optional AI guidance unavailable: "+ex.Message);}
+        var trailHarmony=new Harmony("nl.roan.sprocket.shellselector.atgmtrail");
+        try{RuntimeAtgmTrail.Configure(Config);trailHarmony.PatchAll(typeof(RuntimeAtgmTrail));Log.LogInfo("[ATGM trail] Experimental motor flame/smoke hooks loaded.");}
+        catch(Exception ex){trailHarmony.UnpatchSelf();Log.LogWarning("[ATGM trail] Optional visuals unavailable: "+ex.Message);}
         var simulatorHarmony = new Harmony("nl.roan.sprocket.shellselector.simulator");
         try
         {
             RuntimeArmourSimulator.Configure();
+            simulatorHarmony.PatchAll(typeof(RuntimeShellEra));
             simulatorHarmony.PatchAll(typeof(RuntimeArmourSimulator));
             Log.LogInfo("[Armour Simulator] Patches loaded.");
         }

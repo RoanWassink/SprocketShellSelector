@@ -567,3 +567,241 @@ Check(AtgmGuidance.SpeedAtAge(burnout,50,1.1)==200 && AtgmGuidance.SpeedAtAge(bu
 Check(AtgmGuidance.SpeedAtAge(burnout,50,100)==10,"coast model retains a finite minimum speed");
 Check(AtgmGuidance.SpeedAtAge(burnout with {MotorBurnTime=0},50,100)==200,"zero burn time preserves old sustained motor semantics");
 Console.WriteLine($"AI / FLIGHT PASS: {checks} checks.");
+using(var fixture=typeof(ShellProfiles).Assembly.GetManifestResourceStream("ArmourResponse.Fixture")!)
+{
+ var json=new StreamReader(fixture).ReadToEnd();
+ var cfg=ArmourResponses.Parse(json) with {Enabled=true};
+ var glass=cfg.Responses.Single(r=>r.Kind=="glassTextolite");
+ var nera=cfg.Responses.Single(r=>r.Kind=="nera");
+ var era=cfg.Responses.Single(r=>r.Kind=="lightEra");
+ var composite=cfg.Responses.Single(r=>r.Kind=="passiveComposite");
+ Check(cfg.Responses.Count==4,"canonical catalogue binds four distinct exact material IDs");
+ Check(!ArmourResponses.Parse(json).Enabled,"standalone response catalogue defaults disabled");
+ Check(ArmourResponses.PassiveMatches(nera,5633.3335f,.55f,.2f),"float passive recipe matches after exact ID resolution");
+ Check(!ArmourResponses.PassiveMatches(nera,7850,1,.2f),"custom passive recipe disables additional response");
+ var shot=new ArmourShotState();
+ Check(ArmourResponseModel.Apply(cfg,glass,shot,"glass0","apfsds",true,true,100,30,25,false)==1,"unconditioned rod has no glass bonus");
+ Check(ArmourResponseModel.PerforatedSteel(shot,cfg.Preconditioning,"rha",20,50,0,"steel1"),"traversed oblique steel conditions rod");
+ Check(Math.Abs(shot.Disturbance-.35)<1e-12,"steel disturbance follows candidate curve");
+ Check(!ArmourResponseModel.PerforatedSteel(shot,cfg.Preconditioning,"rha",20,50,0,"steel1")&&shot.Disturbance==.35,"repeat callback cannot precondition twice");
+ Check(Math.Abs(ArmourResponseModel.Apply(cfg,glass,shot,"glass1","apfsds",true,true,100,30,25,false)-.93)<1e-12,"downstream glass applies proportional disturbance loss");
+ Check(ArmourResponseModel.Apply(cfg,glass,shot,"glass1","apfsds",true,true,100,30,25,false)==1,"same layer applies once");
+ foreach(var gap in new[]{double.NaN,-5,0,4,301})
+  Check(ArmourResponseModel.Apply(cfg,glass,shot,"gap"+gap,"apfsds",true,true,100,30,gap,false)==1,"unproven/out-of-band gap cannot grant synergy");
+ Check(ArmourResponseModel.Apply(cfg,nera,new(),"n0","heat",true,true,30,0,0,false)==1,"NERA needs obliquity");
+ Check(ArmourResponseModel.Apply(cfg,nera,new(),"n45","heat",true,true,30,45,0,false)==.75,"declared NERA works without fictitious outside gap");
+ Check(ArmourResponseModel.Apply(cfg,nera,new(),"n85","heat",true,true,30,85,0,false)==1,"outside angular curve no extrapolation benefit");
+ foreach(var mode in new[]{"ap","aphe","hesh"})Check(ArmourResponseModel.Apply(cfg,era,new(),mode,mode,true,true,30,30,0,true)==1,"light ERA has no invented anti-AP/HESH bonus");
+ Check(ArmourResponseModel.Apply(cfg,era,new(),"rod","apfsds",true,true,30,30,0,true)==1,"light ERA adds no anti-rod loss");
+ Check(ArmourResponseModel.Apply(cfg,era,new(),"heat","heat",true,true,30,30,0,true)==era.Calibration.HeatRetention,"intact eligible ERA follows canonical catalogue retention");
+ Check(ArmourResponseModel.Apply(cfg,era,new(),"spent","heat",true,true,30,30,0,false)==1,"spent cell retains only native passive resistance");
+ Check(ArmourResponseModel.Apply(cfg,era,new(),"frag","heat",false,true,30,30,0,true)==1,"secondary fragment receives no response");
+ Check(ArmourResponseModel.Apply(cfg,era,new(),"old","heat",true,false,30,30,0,true)==1,"non-ColdWar target receives no response");
+ Check(ArmourResponseModel.Apply(cfg with {Enabled=false},era,new(),"off","heat",true,true,30,30,0,true)==1,"disabled catalogue keeps passive simulation");
+ var many=new ArmourShotState();
+ for(var i=0;i<20;i++)ArmourResponseModel.Apply(cfg,nera,many,"many"+i,"heat",true,true,30,45,0,false);
+ Check(Math.Abs(many.AdditionalRetention-.4)<1e-12,"additional HEAT losses capped cumulatively");
+ var disturbed=new ArmourShotState();
+ for(var i=0;i<10;i++)ArmourResponseModel.PerforatedSteel(disturbed,cfg.Preconditioning,"sheetMetal",20,60,0,"s"+i);
+ Check(disturbed.Disturbance==.6,"disturbance capped across traversed layers");
+ for(var i=0;i<30;i++)ArmourResponseModel.Apply(cfg,composite,disturbed,"c"+i,"apfsds",true,true,100,30,0,false);
+ Check(Math.Abs(disturbed.AdditionalRetention-.65)<1e-12,"additional rod loss capped cumulatively");
+ var cells=new EraCells();var cell=new EraCell(1,2,1,0,0);var preview=new EraCells();
+ Check(cells.Consume(cell)&&!cells.Consume(cell),"ERA cell benefits exactly once");
+ Check(cells.Consume(cell with {X=1}),"adjacent cell remains intact");
+ Check(preview.Consume(cell)&&cells.Count==2,"preview ledger cannot change combat ledger");
+ Check(cells.Consume(cell with {Spawn=2}),"new spawn has fresh ERA cells");
+ cells.RemoveElement(1,2);Check(cells.Count==1,"element cleanup removes only its consumed cells");
+ cells.RemoveSpawn(2);Check(cells.Count==0,"spawn removal clears transient battle damage");
+ var concurrent=new EraCells();var winners=0;
+ Parallel.For(0,64,_=>{if(concurrent.Consume(cell))Interlocked.Increment(ref winners);});
+ Check(winners==1,"concurrent impacts receive only one intact ERA benefit");
+ var invalid=json.Replace("\"angleFullDegrees\": 50","\"angleFullDegrees\": 20");
+ var rejected=false;try{ArmourResponses.Parse(invalid);}catch(FormatException){rejected=true;}
+ Check(rejected,"equal full/min angle is rejected before division");
+ var invalidShot=new ArmourShotState();
+ Check(!ArmourResponseModel.PerforatedSteel(invalidShot,cfg.Preconditioning with {FullAngle=20},"rha",20,20,0,"invalid")&&double.IsFinite(invalidShot.Disturbance),"model defensively rejects zero slope");
+}
+Console.WriteLine($"ARMOUR RESPONSE PASS: {checks} checks.");
+Check(ArmourResponseModel.ResidualSpeed(800,.5f)==400,"native continuation preserves parent speed reduction after cached KE");
+Check(ArmourResponseModel.ResidualSpeed(800,1)==800,"unmodified material leaves native continuation alone");
+Check(ArmourResponseModel.ResidualSpeed(800,2)==800,"energy correction cannot accelerate native child");
+Check(ArmourResponseModel.ResidualSpeed(800,float.NaN)==800,"invalid cache correction fails closed");
+Console.WriteLine($"ARMOUR ENERGY PASS: {checks} checks.");
+var nativeProportionalSpeed=(float)Math.Sqrt(2*100*.5/2);
+var correctedProportionalSpeed=ArmourResponseModel.ResidualSpeed(nativeProportionalSpeed,.8f);
+Check(Math.Abs(.5*2*correctedProportionalSpeed*correctedProportionalSpeed-32)<.00001,"native proportional passive energy loss uses corrected input energy");
+var changedMassSpeed=(float)Math.Sqrt(2*100*.5/5);
+var correctedMassSpeed=ArmourResponseModel.ResidualSpeed(changedMassSpeed,.8f);
+Check(Math.Abs(.5*5*correctedMassSpeed*correctedMassSpeed-32)<.00001,"native changed child mass retains proportional KE correction");
+Check(ArmourResponseModel.ResidualSpeed(0,.8f)==0,"native stopped continuation is not revived");
+Console.WriteLine($"ARMOUR NATIVE FORMULA PASS: {checks} checks.");
+var actualEraNames=new[]{"WWI","Interwar","Earlywar","Midwar","Latewar","Coldwar"};
+foreach(var behavior in new[]{"ap","he","aphe","heat","hesh","apfsds","atgm","atgm_gun"})
+foreach(var nativeEra in actualEraNames)
+{
+ var custom=new ShellProfile("renamed_"+behavior,"Custom",defaults,behavior);
+ var expected=behavior is "ap" or "he"||nativeEra=="Coldwar"||(behavior is "aphe" or "heat"&&nativeEra is "Earlywar" or "Midwar" or "Latewar");
+ Check(ShellEraPolicy.Allowed(custom,nativeEra)==expected,"actual native era x behaviour floor");
+ Check(ShellEraPolicy.Effective(custom,nativeEra)!=null==expected,"shared runtime/preview resolver matches selection");
+}
+
+var storedAtgm=new ShellProfile("custom_alias","User missile",defaults,"atgm");
+var savedId=storedAtgm.Id;
+Check(ShellEraPolicy.Effective(storedAtgm,"Latewar")==null&&storedAtgm.Id==savedId,"incompatible imported missile retains saved ID with native fallback");
+Check(ShellEraPolicy.Effective(storedAtgm,"Coldwar")?.Id==savedId,"saved profile becomes effective again in ColdWar");
+Check(ShellEraPolicy.Effective(storedAtgm,null)==null,"unknown vehicle era fails closed");
+Check(!ShellEraPolicy.Allowed(storedAtgm with {MinimumEra="WWI"},"Latewar"),"earlier requested minimum cannot lower ATGM floor");
+var strictHe=storedAtgm with {Behavior="he",MinimumEra="Coldwar"};
+Check(!ShellEraPolicy.Allowed(strictHe,"Latewar")&&ShellEraPolicy.Allowed(strictHe,"Coldwar"),"optional minimum can restrict an earlier shell further");
+Check(!ShellEraPolicy.Allowed(strictHe with {MinimumEra="bogus"},"Coldwar"),"invalid minimum fails closed defensively");
+var capturedAvailable=new[]{storedAtgm};
+Check(!ShellEraPolicy.Allowed(capturedAvailable[0],"Latewar"),"stale ColdWar dropdown callback rechecks changed owner era");
+var eraJson=ReleaseProfiles.Defaults().Replace("\"behavior\": \"he\"","\"behavior\": \"he\", \"minimumEra\": \"Coldwar\"");
+Check(ShellProfiles.Parse(eraJson).Single(p=>p.Behavior=="he").MinimumEra=="Coldwar","optional era parses without rewriting legacy fields");
+var badEraRejected=false;try{ShellProfiles.Parse(eraJson.Replace("\"minimumEra\": \"Coldwar\"","\"minimumEra\": \"bogus\""));}catch(FormatException){badEraRejected=true;}
+Check(badEraRejected,"malformed optional minimum is rejected");
+var nativeTypes=new ShellNativeTypeCache<string>();
+nativeTypes.Remember((IntPtr)1,"custom missile cached id","actual native APHE id");
+var cachedType="custom missile cached id";
+Check(nativeTypes.Restore((IntPtr)1,cachedType,ref cachedType)&&cachedType=="actual native APHE id","cached custom projectile ID restores exact native input before blocked launch");
+var otherRegisterType="custom missile cached id";
+Check(!nativeTypes.Restore((IntPtr)2,otherRegisterType,ref otherRegisterType)&&otherRegisterType=="custom missile cached id","cached mapping is scoped to actual native register");
+nativeTypes.Clear((IntPtr)1);cachedType="custom missile cached id";
+Check(!nativeTypes.Restore((IntPtr)1,cachedType,ref cachedType),"register release clears stale type fallback mappings");
+var shooterProfile=ShellEraPolicy.Effective(storedAtgm,"Coldwar");
+Check(shooterProfile!=null&&shooterProfile.Id==savedId,"legitimate launched ColdWar snapshot remains usable against earlier target");
+Console.WriteLine($"SHELL ERA REPAIR PASS: {checks} checks.");
+nativeTypes.Remember((IntPtr)1,"shared custom id","native AP for cannon A",(IntPtr)10);
+nativeTypes.Remember((IntPtr)1,"shared custom id","native APHE for cannon B",(IntPtr)20);
+var cannonAType="shared custom id";var cannonBType="shared custom id";
+Check(nativeTypes.Restore((IntPtr)1,cannonAType,ref cannonAType,(IntPtr)10)&&cannonAType=="native AP for cannon A","cached fallback retains actual native ammo for first cannon");
+Check(nativeTypes.Restore((IntPtr)1,cannonBType,ref cannonBType,(IntPtr)20)&&cannonBType=="native APHE for cannon B","shared custom prototype cannot mix native ammo across cannons");
+var unknownSourceType="shared custom id";
+Check(!nativeTypes.Restore((IntPtr)1,unknownSourceType,ref unknownSourceType,(IntPtr)30)&&nativeTypes.Known((IntPtr)1,unknownSourceType),"unknown-source cached custom shot can be withheld without inventing AP ID");
+Console.WriteLine($"SHELL ERA SOURCE CACHE PASS: {checks} checks.");
+nativeTypes.Remember((IntPtr)1,"custom prototype native_AP","AP original",(IntPtr)10);
+nativeTypes.Remember((IntPtr)1,"custom prototype native_APHE","APHE original",(IntPtr)10);
+var previousAp="custom prototype native_AP";var currentAphe="custom prototype native_APHE";
+Check(nativeTypes.Restore((IntPtr)1,previousAp,ref previousAp,(IntPtr)10)&&previousAp=="AP original","same source cached former AP type remains AP after switching to APHE");
+Check(nativeTypes.Restore((IntPtr)1,currentAphe,ref currentAphe,(IntPtr)10)&&currentAphe=="APHE original","same source APHE type has independent actual native binding");
+Console.WriteLine($"SHELL ERA AMMO CACHE PASS: {checks} checks.");
+
+var stockHeatBudget=ShellProfiles.Parse(ReleaseProfiles.Defaults()).Single(p=>p.Id=="heat");
+foreach(var period in new[]{"Earlywar","Midwar","Latewar"})
+    Check(Math.Abs(ShellChemicalBudget.Resolve(stockHeatBudget,85,period)-102)<1e-9,"stock WWII85mm HEAT budget102: "+period);
+Check(ShellChemicalBudget.Resolve(stockHeatBudget,85,"Coldwar")==340,"stock ColdWar85mm retains340");
+foreach(var period in new string?[]{"WWI","Interwar",null,"unknown"})
+    Check(ShellChemicalBudget.Resolve(stockHeatBudget,85,period)==0,"unavailable era fails closed");
+Check(ShellChemicalBudget.Resolve(stockHeatBudget with{ChemicalPenetrationMm=450},85,"Midwar")==382.5,"custom450 budget retained");
+Check(ShellChemicalBudget.Resolve(stockHeatBudget with{Id="custom_heat"},85,"Midwar")==340,"alias stock numbers are exempt");
+var changedStockFields=new[]{
+stockHeatBudget with{Label="Personal HEAT"},stockHeatBudget with{Behavior="hesh"},
+stockHeatBudget with{NativeExplosivePower=1},stockHeatBudget with{SpallMultiplier=2},
+stockHeatBudget with{ConeHalfAngleDegrees=10},stockHeatBudget with{ExplosionScale=.8},
+stockHeatBudget with{SecondPlatePenetrationFactor=.2},stockHeatBudget with{AirGapLossPerCalibre=.4},
+stockHeatBudget with{ReferenceCalibreMm=105},stockHeatBudget with{MinimumEra="Midwar"},
+stockHeatBudget with{Settings=stockHeatBudget.Settings with{DiameterRatio=.8}},
+stockHeatBudget with{Settings=stockHeatBudget.Settings with{LengthInCalibres=3}},
+stockHeatBudget with{Settings=stockHeatBudget.Settings with{Density=1900}},
+stockHeatBudget with{Settings=stockHeatBudget.Settings with{VelocityEfficiency=.2}},
+stockHeatBudget with{Settings=stockHeatBudget.Settings with{VelocityMultiplier=1.1}},
+stockHeatBudget with{Settings=stockHeatBudget.Settings with{MaxVelocityFactor=1.1}},
+stockHeatBudget with{Settings=stockHeatBudget.Settings with{MaxVelocity=650}},
+stockHeatBudget with{Settings=stockHeatBudget.Settings with{PenetrationQuality=.5}},
+stockHeatBudget with{Settings=stockHeatBudget.Settings with{DamageMultiplier=.9}}
+};
+foreach(var modified in changedStockFields) Check(!ShellChemicalBudget.IsStock(modified),"complete fingerprint exempts every changed field");
+Check(ShellChemicalBudget.Resolve(stockHeatBudget,105,"Midwar")==126,"generic105mm gameplaybudget126 not Gr39 historical95");
+Check(ShellChemicalBudget.Resolve(stockHeatBudget,1000,"Coldwar")==2000,"chemical cap2000 retained");
+var launchedColdwarBudget=ShellChemicalBudget.Resolve(stockHeatBudget,85,"Coldwar");
+var laterEditorBudget=ShellChemicalBudget.Resolve(stockHeatBudget,85,"Midwar");
+Check(launchedColdwarBudget==340&&laterEditorBudget==102,"captured budget remains independent of subsequent era resolve");
+foreach(var unchangedChemical in ShellProfiles.Parse(ReleaseProfiles.Defaults()).Where(p=>p.Behavior is "hesh" or "atgm" or "atgm_gun"))
+    Check(ShellChemicalBudget.Resolve(unchangedChemical,85,"Coldwar")==ShellBalance.ChemicalPenetration(unchangedChemical,85),"other chemical profiles unchanged "+unchangedChemical.Id);
+Check(ShellChemicalBudget.Description(stockHeatBudget,"Midwar").Contains("1.20"),"stock UI names gameplayperiod");
+Check(ShellChemicalBudget.Description(stockHeatBudget with{Id="custom_heat"},"Midwar").Contains("exempt"),"custom UI exemption explained");
+Console.WriteLine($"HEAT PERIOD REVIEW PASS: {checks} checks.");
+
+Check(!ShellChemicalBudget.IsStock(stockHeatBudget with{Atgm=new AtgmSettings()}),"full fingerprint includes nested Atgm presence");
+Console.WriteLine($"FINAL HEAT REVIEW PASS: {checks} checks.");
+
+using(var heavyStream=typeof(ShellProfiles).Assembly.GetManifestResourceStream("ArmourResponse.Fixture")!)
+using(var heavyReader=new StreamReader(heavyStream))
+{
+ var heavyRoot=System.Text.Json.Nodes.JsonNode.Parse(heavyReader.ReadToEnd())!;
+ var entries=heavyRoot["responses"]!.AsArray();
+ var heavyEntry=System.Text.Json.Nodes.JsonNode.Parse(entries.First(n=>n!["kind"]!.GetValue<string>()=="lightEra")!.ToJsonString())!;
+ heavyEntry["responseId"]="heavyEraCassette";heavyEntry["kind"]="heavyEra";
+ heavyEntry["compatibleMaterialIds"]=new System.Text.Json.Nodes.JsonArray("cwepHeavyEraCassette");
+ heavyEntry["passiveMaterial"]!["density"]=4000;heavyEntry["passiveMaterial"]!["rhaFactor"]=.55;
+ heavyEntry["passiveMaterial"]!["spallFactor"]=.25;heavyEntry["passiveMaterial"]!["requestedCostMultiplier"]=10.5;
+ heavyEntry["calibration"]!["heatRetention"]=.5;heavyEntry["calibration"]!["intactRodRetention"]=.85;
+ heavyEntry["calibration"]!["disturbedRodRetention"]=.85;
+ heavyEntry["geometry"]!["minNormalThicknessMm"]=60;heavyEntry["geometry"]!["maxNormalThicknessMm"]=80;
+ heavyEntry["geometry"]!["angularCurve"]=System.Text.Json.Nodes.JsonNode.Parse("[{\"angleDegrees\":0,\"weight\":1},{\"angleDegrees\":60,\"weight\":1},{\"angleDegrees\":80,\"weight\":0}]");
+ heavyEntry["geometry"]!["kineticAngularCurve"]=System.Text.Json.Nodes.JsonNode.Parse("[{\"angleDegrees\":0,\"weight\":0},{\"angleDegrees\":30,\"weight\":1},{\"angleDegrees\":60,\"weight\":1},{\"angleDegrees\":80,\"weight\":0}]");
+ entries.Add(heavyEntry);
+ var heavyCfg=ArmourResponses.Parse(heavyRoot.ToJsonString()) with{Enabled=true};
+ var heavy=heavyCfg.Responses.Single(r=>r.Kind=="heavyEra");
+ double Heavy(string threat,double angle,bool intact=true,double thickness=70,bool original=true,bool cold=true)=>ArmourResponseModel.Apply(heavyCfg,heavy,new(),"heavy",threat,original,cold,thickness,angle,0,intact);
+ Check(Heavy("heat",0)==.5&&Heavy("heat",60)==.5,"heavy ERA full HEAT response normal through60");
+ Check(Math.Abs(Heavy("heat",70)-.75)<1e-9&&Heavy("heat",80)==1,"heavy HEAT angular fade");
+ Check(Heavy("apfsds",0)==1&&Heavy("apfsds",30)==.85&&Heavy("apfsds",60)==.85,"heavy KE distinct angular response");
+ Check(Math.Abs(Heavy("apfsds",15)-.925)<1e-9&&Math.Abs(Heavy("apfsds",70)-.925)<1e-9,"heavy KE ramps on both sides");
+ foreach(var threat in new[]{"heat","apfsds"})
+ {
+  Check(Heavy(threat,45,false)==1,"shared spentcell passive for "+threat);
+  Check(Heavy(threat,45,thickness:59.9)==1&&Heavy(threat,45,thickness:80.1)==1,"thickness band enforced");
+  Check(Heavy(threat,45,thickness:60)<1&&Heavy(threat,45,thickness:80)<1,"inclusive thickness endpoints");
+  Check(Heavy(threat,45,original:false)==1&&Heavy(threat,45,cold:false)==1,"secondary and earlier target passive");
+  Check(Heavy(threat,90)==1,"outside angle passive");
+ }
+ foreach(var threat in new[]{"ap","aphe","he","hesh"})
+  Check(Heavy(threat,45)==1&&!ArmourResponseModel.ReactiveThreat(heavy,threat),"unsupported threat passive/no activation "+threat);
+ var heavyCells=new EraCells();var sharedCell=new EraCell(88,2,1,0,0);
+ Check(heavyCells.Consume(sharedCell)&&!heavyCells.Consume(sharedCell),"HEAT/KE share exactly one finitecell");
+ Check(heavyCells.Consume(sharedCell with{Element=3})&&heavyCells.Consume(sharedCell with{Spawn=89}),"separate plate/spawn isolated");
+ Check(ArmourResponseModel.AngularWeight(heavy,"apfsds",0)==0&&ArmourResponseModel.AngularWeight(heavy,"heat",0)>0,"zero-weight rod doesnot trigger but normalHEAT does");
+ var heavyCumulative=new ArmourShotState();
+ for(var i=0;i<20;i++)ArmourResponseModel.Apply(heavyCfg,heavy,heavyCumulative,"h"+i,"heat",true,true,70,45,0,true);
+ Check(Math.Abs(heavyCumulative.AdditionalRetention-.4)<1e-9,"heavy HEAT cumulative60percent cap unchanged");
+ var heavyKeCumulative=new ArmourShotState();
+ for(var i=0;i<20;i++)ArmourResponseModel.Apply(heavyCfg,heavy,heavyKeCumulative,"k"+i,"apfsds",true,true,70,45,0,true);
+ Check(Math.Abs(heavyKeCumulative.AdditionalRetention-.65)<1e-9,"heavy KE cumulative35percent cap unchanged");
+ Check(ArmourResponses.PassiveMatches(heavy,4000,.55f,.25f)&&!ArmourResponses.PassiveMatches(heavy,4300,.35f,.2f),"heavy exact passive fingerprint");
+ var withoutKe=System.Text.Json.Nodes.JsonNode.Parse(heavyRoot.ToJsonString())!;
+ withoutKe["responses"]!.AsArray().Last()!["geometry"]!.AsObject().Remove("kineticAngularCurve");
+ bool missingRejected=false;try{ArmourResponses.Parse(withoutKe.ToJsonString());}catch(FormatException){missingRejected=true;}
+ Check(missingRejected,"heavy missing KE curve rejected");
+ var oldWithKe=System.Text.Json.Nodes.JsonNode.Parse(heavyRoot.ToJsonString())!;
+ var oldEntry=oldWithKe["responses"]!.AsArray().First(n=>n!["kind"]!.GetValue<string>()=="lightEra")!;
+ oldEntry["geometry"]!["kineticAngularCurve"]=System.Text.Json.Nodes.JsonNode.Parse(heavyEntry["geometry"]!["kineticAngularCurve"]!.ToJsonString());
+ bool oldRejected=false;try{ArmourResponses.Parse(oldWithKe.ToJsonString());}catch(FormatException){oldRejected=true;}
+ Check(oldRejected,"old kinds forbid new optional curve");
+}
+Console.WriteLine($"HEAVY ERA REVIEW PASS: {checks} checks.");
+
+if(Environment.GetEnvironmentVariable("SHELL_REVIEW_ARMOUR_CATALOGUE") is {} producerPath)
+{
+ var producerCatalogue=ArmourResponses.Parse(File.ReadAllText(producerPath));
+ var producerHeavy=producerCatalogue.Responses.Single(r=>r.Kind=="heavyEra");
+ Check(producerHeavy.CompatibleMaterialIds.SequenceEqual(new[]{"cwepHeavyEraCassette"}),"actualproducer exact heavy materialID");
+ Check(producerHeavy.Calibration.HeatRetention==.5&&producerHeavy.Calibration.IntactRodRetention==.85&&producerHeavy.Calibration.DisturbedRodRetention==.85,"actualproducer calibration");
+ Check(producerHeavy.Geometry.MinNormalThicknessMm==60&&producerHeavy.Geometry.MaxNormalThicknessMm==80&&producerHeavy.CellPitchM==.25,"actualproducer geometry/cells");
+ Check(ArmourResponseModel.AngularWeight(producerHeavy,"heat",0)==1&&ArmourResponseModel.AngularWeight(producerHeavy,"apfsds",0)==0,"actualproducer distinctanglecurves");
+ Check(!producerCatalogue.Enabled&&producerCatalogue.MaximumAdditionalHeatLoss==.6&&producerCatalogue.MaximumAdditionalKineticLoss==.35,"actualproducer defaultdisabled/caps preserved");
+ Check(producerCatalogue.Responses.Single(r=>r.Kind=="lightEra").Calibration.HeatRetention==.62,"actualproducer lightERAunchanged");
+ Console.WriteLine($"ACTUAL PRODUCER CONTRACT PASS: {checks} checks.");
+}
+
+if(Environment.GetEnvironmentVariable("SHELL_REVIEW_CANDIDATE_DLL") is {} candidateDll && Environment.GetEnvironmentVariable("SHELL_REVIEW_ARMOUR_CATALOGUE") is {} candidateCatalogue)
+{
+ var candidateAssembly=System.Reflection.Assembly.LoadFrom(candidateDll);
+ var candidateParser=candidateAssembly.GetType("SprocketShellSelector.ArmourResponses",true)!;
+ var parsedCandidate=candidateParser.GetMethod("Parse",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic)!.Invoke(null,new object[]{File.ReadAllText(candidateCatalogue)})!;
+ var candidateResponses=(System.Collections.IEnumerable)parsedCandidate.GetType().GetProperty("Responses")!.GetValue(parsedCandidate)!;
+ var candidateKinds=candidateResponses.Cast<object>().Select(r=>(string)r.GetType().GetProperty("Kind")!.GetValue(r)!).ToArray();
+ Check(candidateKinds.Count(k=>k=="heavyEra")==1,"actual frozen candidate DLL parses producer heavyEra catalogue");
+ Console.WriteLine($"ACTUAL DLL CONTRACT PASS: {checks} checks.");
+}

@@ -54,3 +54,5 @@ internal static class ShellBallistics
         Range("fragmentDamageMultiplier", settings.DamageMultiplier, .01, 1);
     }
 }
+
+

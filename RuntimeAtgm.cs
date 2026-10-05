@@ -53,6 +53,22 @@ internal static class RuntimeAtgm
     {if(Warnings.Add(area))Plugin.ModLog.LogWarning($"[ATGM] {area}: {ex.Message}");}
 
     internal static bool IsPlayerVehicle(IntPtr vehicle) => vehicle!=IntPtr.Zero && vehicle==currentVehicle;
+    // Read-only view for optional visuals; never changes ownership or flight commands.
+    internal static IEnumerable<(int Id, float Spawn, Vector3 Position, Vector3 Direction, float Calibre, bool Burning, Transform Native)> VisualFlights(ProjectileRegister register)
+    {
+        foreach(var entry in Flights.Where(e=>e.Key.Register==register.Pointer).ToArray())
+        {
+            var flight=entry.Value;
+            if(!register.activeIdMap.TryGetValue(entry.Key.Id,out var index))continue;
+            var p=register.pool[index];
+            if(p.spawnTime!=flight.SpawnTime || p.Definition.Guid.ToString()!=flight.Definition)continue;
+            var settings=flight.Profile.Atgm!;
+            var age=Time.time-flight.SpawnTime;
+            var burning=age>=settings.MotorDelay && (settings.MotorBurnTime<=0 || age<settings.MotorDelay+settings.MotorBurnTime);
+            var calibre=flight.Weapon.mount?.TryCast<Cannon>()?.Blueprint.Caliber ?? 135;
+            yield return (entry.Key.Id,flight.SpawnTime,p.position,p.velocity.normalized,calibre*.001f,burning,p.transform);
+        }
+    }
     private static bool KeyboardOwned(Flight flight, float now) => Ready && Enabled && flight.Guide &&
         flight.Profile.Atgm?.GuidanceMode == "keyboard" && flight.Vehicle != IntPtr.Zero && flight.Vehicle == currentVehicle &&
         now >= flight.SpawnTime && now-flight.SpawnTime < flight.Profile.Atgm.MaximumFlightTime &&
@@ -144,7 +160,7 @@ internal static class RuntimeAtgm
     [HarmonyPostfix,HarmonyPatch(typeof(ProjectileRegister),nameof(ProjectileRegister.Launch))]
     private static void Launched(ProjectileRegister __instance,Il2CppSystem.Object source,ref ProjectileFireInfo fireInfo)
     {
-        if(!Ready || !Enabled)return;
+        if(!Ready || !Enabled || !RuntimeShellSelection.LaunchAccepted)return;
         try
         {
             var weapon=source?.TryCast<CannonBehaviour>();
@@ -152,6 +168,7 @@ internal static class RuntimeAtgm
             var p=__instance.pool[index];
             var profile=RuntimeShellSelection.ProjectileProfile(p);
             if(profile==null || !ShellBalance.IsAtgm(profile.Behavior) || profile.Atgm==null)return;
+            if(!RuntimeShellEra.Allowed(profile,weapon.mount?.TryCast<Cannon>()?.Vehicle))return;
             var flight=new Flight(weapon,profile,p);
             foreach(var old in Flights.Values.Where(f=>f.Weapon.Pointer==weapon.Pointer || flight.Vehicle!=IntPtr.Zero && f.Vehicle==flight.Vehicle))old.Guide=false;
             Flights[(__instance.Pointer,p.ID)]=flight;
