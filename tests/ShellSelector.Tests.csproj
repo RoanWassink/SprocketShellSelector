@@ -9,4 +9,5 @@
 <ItemGroup><Compile Include="..\ShellEraPolicy.cs" Link="ShellEraPolicy.cs" /></ItemGroup>
 <ItemGroup><Compile Include="..\ShellNativeTypeCache.cs" Link="ShellNativeTypeCache.cs" /></ItemGroup>
 <ItemGroup><Compile Include="..\ShellChemicalBudget.cs" Link="ShellChemicalBudget.cs" /></ItemGroup>
+<ItemGroup><Compile Include="..\ShellDatePolicy.cs" Link="ShellDatePolicy.cs" /></ItemGroup>
 </Project>

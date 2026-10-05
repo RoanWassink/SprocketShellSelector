@@ -16,7 +16,23 @@ internal static class RuntimeShellEra
     private static readonly Dictionary<IntPtr,PreviewBinding> previewOwners=new();
     internal static string? Era(IVehicleGateway? owner)
     {
-        try{return owner?.DesignInfo is {} info?VehicleClassifications.GetEra(info.Date)?.Name:null;}
+        try
+        {
+            if(owner?.DesignInfo is not {} info||VehicleClassifications.eras is not {} eras)return null;
+            var starts=new DateTime[eras.Length];
+            for(var i=0;i<eras.Length;i++)
+            {
+                if(eras[i]==null)return null;
+                var start=eras[i].StartDate;starts[i]=new(start.Year,start.Month,start.Day);
+            }
+            if(!ShellDatePolicy.ValidTimeline(starts))return null;
+            var raw=info.Date;var date=new DateTime(raw.Year,raw.Month,raw.Day);
+            // Canonical policy token preserves profile floors and shot snapshots;
+            // native custom names are not evidence for modern availability.
+            if(ShellDatePolicy.Modern(date,starts))return "coldwar";
+            if(date.Date==DateTime.MaxValue.Date)return null;
+            return VehicleClassifications.GetEra(info.Date)?.Name;
+        }
         catch{return null;}
     }
     internal static bool Allowed(ShellProfile profile,IVehicleGateway? owner)=>ShellEraPolicy.Allowed(profile,Era(owner));

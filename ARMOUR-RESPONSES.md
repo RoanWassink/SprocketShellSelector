@@ -2,7 +2,7 @@
 
 ## What to install
 
-For active armour interactions use **Material Selector 0.4.4 + Shell Selector 0.12.3-heavyera.1 + Cold War core 0.1.3**, with the response catalogue enabled. The full Cold War pack configures this combination. Installing a material DLL alone gives passive material properties, not an active ERA effect. Do not load the new heavyEra catalogue with an older Shell Selector: its parser can reject the whole catalogue.
+For active armour interactions use **Material Selector 0.4.5 + Shell Selector 0.12.4 + Cold War core 0.1.3**, with the response catalogue enabled. The full Cold War pack configures this combination. Installing a material DLL alone gives passive material properties, not an active ERA effect. Do not load the new heavyEra catalogue with an older Shell Selector: its parser can reject the whole catalogue.
 
 Edit `BepInEx/config/sprocket.armour.responses.json` with the game closed and restart. The standalone example is disabled (`enabled: false`); enable it only after installing the matching consumers. The pack explicitly enables its clean starter catalogue. Updating DLLs does not overwrite an existing catalogue or automatically append a new recipe. Back up and merge the new entry, retaining your root settings and customized old recipes.
 
@@ -50,3 +50,6 @@ Only the existing kinds glassTextolite, nera, lightEra, heavyEra and passiveComp
 ## Update, recovery and uninstall
 
 Back up the catalogue and native Technology files before changing them. Preserve root enabled/caps/preconditioning and existing entries when adding heavy ERA. Restart both consumers after edits; a material-side reload does not reload Shell's startup catalogue. Check LogOutput.log for skipped recipes, unknown IDs and parser errors. Restore the paired DLLs and pre-update catalogue together for rollback. Before uninstalling, replace custom materials on affected vehicles with stock materials and save; keep originals/backups if you want to return later.
+## Native verification in 0.12.4
+
+Heavy ERA against HEAT is verified in both Sample and Play, including same-cell consumption and new-Play reset. The lookup repair also serves the other recipes; their individual native behavior is not yet equally verified. Additional protection remains conditional on valid thickness, angle, native technology and matching passive recipe. Repeated Sample tests use separate preview cells and do not spend combat cells.

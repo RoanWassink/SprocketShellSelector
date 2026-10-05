@@ -69,6 +69,7 @@ internal static class RuntimeArmourSimulator
         catch(Exception ex){Plugin.ModLog.LogError("[Armour Simulator] UI: "+ex);}
     }
     private sealed record UpdateState(ArmourOverlay? PreviousOverlay,ShellImpactContext? PreviousImpact);
+    internal static Sprocket.Vehicles.IVehicleGateway? CurrentOwner=>RuntimeShellEra.PreviewOwner(activeOverlay);
     private static readonly Dictionary<IntPtr,string> LastChoices=new();
     [HarmonyPrefix,HarmonyPatch(typeof(ArmourOverlayPointerOperator),nameof(ArmourOverlayPointerOperator.Update))]
     private static void Begin(ArmourOverlayPointerOperator __instance,out UpdateState __state)

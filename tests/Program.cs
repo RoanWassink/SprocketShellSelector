@@ -805,3 +805,16 @@ if(Environment.GetEnvironmentVariable("SHELL_REVIEW_CANDIDATE_DLL") is {} candid
  Check(candidateKinds.Count(k=>k=="heavyEra")==1,"actual frozen candidate DLL parses producer heavyEra catalogue");
  Console.WriteLine($"ACTUAL DLL CONTRACT PASS: {checks} checks.");
 }
+var dateStarts=new[]{new DateTime(1914,1,1),new DateTime(1939,9,1),new DateTime(1945,9,3),new DateTime(2100,1,1),new DateTime(3000,1,1)};
+Check(!ShellDatePolicy.Modern(new DateTime(1945,9,2),dateStarts),"modern floor previous day denied");
+Check(ShellDatePolicy.Modern(new DateTime(1945,9,3),dateStarts),"modern floor inclusive");
+Check(ShellDatePolicy.Modern(new DateTime(2100,1,1),dateStarts),"custom2100 accepted");
+Check(ShellDatePolicy.Modern(new DateTime(3000,1,1),dateStarts),"custom3000 accepted");
+Check(ShellDatePolicy.Modern(DateTime.MaxValue,dateStarts),"last modern start sentinel accepted");
+Check(!ShellDatePolicy.Modern(DateTime.MaxValue,new[]{new DateTime(1914,1,1),new DateTime(1939,9,1)}),"last early start sentinel denied");
+Check(!ShellDatePolicy.Modern(new DateTime(2100,1,1),new[]{dateStarts[1],dateStarts[0]}),"unordered timeline denied");
+Check(!ShellDatePolicy.Modern(new DateTime(2100,1,1),new[]{dateStarts[0],dateStarts[0]}),"duplicate starts denied");
+Check(!ShellDatePolicy.Modern(new DateTime(3000,1,1),new[]{dateStarts[0],DateTime.MaxValue}),"sentinel start denied");
+Check(!ShellDatePolicy.Modern(null,dateStarts),"missing date denied");
+Check(!ShellDatePolicy.Modern(new DateTime(1946,1,1),new[]{new DateTime(2100,1,1)}),"before first start denied");
+Console.WriteLine($"CUSTOM DATE POLICY PASS: {checks} checks.");
