@@ -18,3 +18,6 @@ Close the game, back up matching files and saves, then merge the ZIP's folders i
 
 [Separate loader installation](https://github.com/Hans21223/Sprocket-Mod-Loader).
 
+
+**Active armour dependency:** use Material Selector **0.4.4** and Shell Selector **0.12.3-heavyera.1** together, plus Cold War core **0.1.3** and the enabled armour-response catalogue. Older Shell consumers may reject the new heavy ERA catalogue. The standalone catalogue is an opt-in example; preserve and merge existing custom settings. The full pack supplies the matching pair.
+
