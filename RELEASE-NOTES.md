@@ -21,3 +21,6 @@ Close the game, back up matching files and saves, then merge the ZIP's folders i
 
 **Active armour dependency:** use Material Selector **0.4.4** and Shell Selector **0.12.3-heavyera.1** together, plus Cold War core **0.1.3** and the enabled armour-response catalogue. Older Shell consumers may reject the new heavy ERA catalogue. The standalone catalogue is an opt-in example; preserve and merge existing custom settings. The full pack supplies the matching pair.
 
+
+**Era changes:** HESH, APFSDS and guided ATGM are Cold War-only; APHE/HEAT start in Earlywar. An imported earlier-era cannon retains its saved profile identity but does not receive an unavailable modern effect. Use the core-only download or full Cold War pack to access the new era.
+
