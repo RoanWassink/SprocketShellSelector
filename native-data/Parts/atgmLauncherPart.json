@@ -1,0 +1,90 @@
+{
+  "v": "0.2",
+  "guid": "07a91e5d-be14-5a5c-9321-574b21aadcf3",
+  "name": "atgmLauncher",
+  "order": -1,
+  "tags": [
+    "cannon"
+  ],
+  "components": [
+    {
+      "fileID": "cannon",
+      "type": "cannon",
+      "info": {
+        "v": "0.0",
+        "barrelFileID": "barrel",
+        "breechFileID": "breech",
+        "materialGuid": "38c8229f8ae921e40936565b4fec4b4a"
+      }
+    },
+    {
+      "fileID": "barrel",
+      "type": "cannonBarrel",
+      "info": {
+        "v": "0.0",
+        "segmentPartGuid": "c56166b7-89f3-4791-9a22-a9c3c8e8ce16",
+        "boreMeshGuid": "21caf9e215693864d91936efe5a34108",
+        "boreMaterialGuid": "5bc48a80d6e5b5d43ae73c1d3bd35164"
+      }
+    },
+    {
+      "fileID": "breech",
+      "type": "cannonBreech",
+      "info": {
+        "v": "0.0",
+        "modelFileID": "breechModel",
+        "dimensions": [
+          1.15,
+          0.5,
+          1.65
+        ]
+      }
+    },
+    {
+      "fileID": "breechModel",
+      "type": "model",
+      "info": {
+        "v": "0.2",
+        "meshGuid": "02882269ebc840248b89e8df9786faaf",
+        "materialGuids": [
+          "c85165e0deb70c445a71fcae37e03a08"
+        ],
+        "scaling": true,
+        "flipping": true,
+        "selectable": false,
+        "placementSurface": false,
+        "damageable": false
+      }
+    }
+  ],
+  "transform": {
+    "mirroring": true,
+    "duplication": true,
+    "pickup": true,
+    "snapToCentre": true,
+    "autoRotate": false,
+    "airPlacement": true,
+    "translation": true,
+    "rotation": true,
+    "scaling": true,
+    "dynamic": true,
+    "placementMode": "upright",
+    "scale": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "maxScale": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "minScale": [
+      1,
+      1,
+      1
+    ],
+    "objects": []
+  },
+  "date": "1945.09.03"
+}

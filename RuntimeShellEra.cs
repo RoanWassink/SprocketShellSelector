@@ -14,31 +14,54 @@ internal static class RuntimeShellEra
     }
     private sealed record PreviewBinding(IVehicleEditor Editor,IVehicleOverlayApplier Applier);
     private static readonly Dictionary<IntPtr,PreviewBinding> previewOwners=new();
-    internal static string? Era(IVehicleGateway? owner)
+    private static readonly string[] behaviors={"ap","he","aphe","heat","hesh","apfsds","atgm","atgm_gun"};
+    internal static ShellEraContext? Context(IVehicleGateway? owner)
     {
         try
         {
-            if(owner?.DesignInfo is not {} info||VehicleClassifications.eras is not {} eras)return null;
-            var starts=new DateTime[eras.Length];
+            if(owner?.DesignInfo is not {} info||owner.Tech is not {} tech||VehicleClassifications.eras is not {} eras)return null;
+            var names=new string[eras.Length];var starts=new ShellNativeDate[eras.Length];
             for(var i=0;i<eras.Length;i++)
             {
                 if(eras[i]==null)return null;
-                var start=eras[i].StartDate;starts[i]=new(start.Year,start.Month,start.Day);
+                names[i]=eras[i].Name;var start=eras[i].StartDate;starts[i]=new(start.Year,start.Month,start.Day);
             }
-            if(!ShellDatePolicy.ValidTimeline(starts))return null;
-            var raw=info.Date;var date=new DateTime(raw.Year,raw.Month,raw.Day);
-            // Canonical policy token preserves profile floors and shot snapshots;
-            // native custom names are not evidence for modern availability.
-            if(ShellDatePolicy.Modern(date,starts))return "coldwar";
-            if(date.Date==DateTime.MaxValue.Date)return null;
-            return VehicleClassifications.GetEra(info.Date)?.Name;
+            // Native classification, including the core's last-era boundary fix,
+            // is authoritative. Do not substitute any date into the tech frame.
+            var index=VehicleClassifications.GetEraIndex(info.Date);
+            var raw=info.Date;var date=new ShellNativeDate(raw.Year,raw.Month,raw.Day);
+            var available=new HashSet<string>(StringComparer.Ordinal);double? heatFactor=null;
+            foreach(var behavior in behaviors)
+                if(tech.TryGetTech("shellSelector_"+behavior,out var shellTech)&&shellTech!=null&&shellTech.GetBool("enabled",false))
+                {
+                    available.Add(behavior);
+                    if(behavior=="heat")
+                    {
+                        var factor=shellTech.GetFloat("penetrationPerCalibre",float.NaN);
+                        if(float.IsFinite(factor)&&factor>0&&factor<=20)heatFactor=factor;
+                    }
+                }
+            var context=new ShellEraContext(date,names,starts,index,available,heatFactor);
+            return ShellEraPolicy.Valid(context)?context:null;
         }
         catch{return null;}
     }
-    internal static bool Allowed(ShellProfile profile,IVehicleGateway? owner)=>ShellEraPolicy.Allowed(profile,Era(owner));
+    internal static string? Era(IVehicleGateway? owner)=>Context(owner) is {} c?c.Names[c.Index]:null;
+    internal static bool HasNativeContext(IVehicleGateway? owner)=>Context(owner)!=null;
+    internal static bool Allowed(ShellProfile profile,IVehicleGateway? owner)
+    {
+        var c=Context(owner);
+        return ShellEraPolicy.Allowed(profile,c)&&(!ShellChemicalBudget.IsStock(profile)||c?.HeatFactor!=null);
+    }
+    internal static double ChemicalBudget(ShellProfile p,double calibre,IVehicleGateway? owner)
+    {
+        var c=Context(owner);
+        return ShellChemicalBudget.Resolve(p,calibre,c?.HeatFactor,ShellEraPolicy.Allowed(p,c));
+    }
+    internal static string ChemicalDescription(ShellProfile p,IVehicleGateway? owner)=>ShellChemicalBudget.Description(p,Context(owner)?.HeatFactor);
     internal static ShellProfile? Resolve(ShellProfile? stored,IVehicleGateway? owner)
     {
-        var era=Era(owner);var effective=ShellEraPolicy.Effective(stored,era);
+        var era=Era(owner);var effective=stored!=null&&Allowed(stored,owner)?stored:null;
         if(stored!=null&&effective==null&&warnings.Add(stored.Id+":"+era))
             Plugin.ModLog.LogWarning($"[Shell era] Stored '{stored.Id}' unavailable in '{era??"unknown"}'; native ammunition used, stored ID retained.");
         return effective;

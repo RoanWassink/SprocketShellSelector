@@ -22,7 +22,7 @@ internal static class RuntimeArmourSimulator
     private static ShellProfile? Selected(ArmourOverlay? overlay) => RuntimeShellSelection.Enabled && overlay!=null && Choices.TryGetValue(overlay.Pointer,out var choice)
         ? RuntimeShellEra.Resolve(RuntimeShellSelection.Profiles.FirstOrDefault(p=>p.Id==choice.Id),RuntimeShellEra.PreviewOwner(overlay)) : null;
     private static float EffectivePenetration(ShellProfile profile,ArmourOverlay overlay) => profile.Behavior is "heat" or "hesh" or "atgm" or "atgm_gun"
-        ? Math.Min(overlay.Penetration,(float)ShellChemicalBudget.Resolve(profile,overlay.Calibre,RuntimeShellEra.Era(RuntimeShellEra.PreviewOwner(overlay)))) : overlay.Penetration;
+        ? Math.Min(overlay.Penetration,(float)RuntimeShellEra.ChemicalBudget(profile,overlay.Calibre,RuntimeShellEra.PreviewOwner(overlay))) : overlay.Penetration;
     [HarmonyPrefix,HarmonyPatch(typeof(ArmourOverlayConfig),nameof(ArmourOverlayConfig.Draw))]
     private static void Limits(ArmourOverlayConfig __instance)
     {
@@ -62,7 +62,7 @@ internal static class RuntimeArmourSimulator
                 if(selected!=null)
                     ui.InfoField("Penetration is chosen by slider; chemical profiles also obey a calibre-scaled budget. Select live shells separately on the cannon.",2);
                 if(selected?.Behavior is "heat" or "hesh" or "atgm" or "atgm_gun")
-                    ui.InfoField(ShellChemicalBudget.Description(selected,RuntimeShellEra.Era(RuntimeShellEra.PreviewOwner(__instance.overlay))),2);
+                    ui.InfoField(RuntimeShellEra.ChemicalDescription(selected,RuntimeShellEra.PreviewOwner(__instance.overlay)),2);
             }
             finally{layout.EndAllDropdowns();}
         }
@@ -80,7 +80,7 @@ internal static class RuntimeArmourSimulator
         var id=selected?.Id??ShellProfiles.Vanilla;
         if(!LastChoices.TryGetValue(__instance.Pointer,out var last)||last!=id){__instance.Clear();LastChoices[__instance.Pointer]=id;}
         var era=RuntimeShellEra.Era(RuntimeShellEra.PreviewOwner(activeOverlay));
-        RuntimeSpall.Impact=selected==null?null:new(){ProfileId=selected.Id,Profile=selected,GunDiameter=activeOverlay!.Calibre*.001f,FiringEra=era,ChemicalBudget=ShellChemicalBudget.Resolve(selected,activeOverlay.Calibre,era)};
+        RuntimeSpall.Impact=selected==null?null:new(){ProfileId=selected.Id,Profile=selected,GunDiameter=activeOverlay!.Calibre*.001f,FiringEra=era,ChemicalBudget=RuntimeShellEra.ChemicalBudget(selected,activeOverlay.Calibre,RuntimeShellEra.PreviewOwner(activeOverlay))};
     }
     [HarmonyFinalizer,HarmonyPatch(typeof(ArmourOverlayPointerOperator),nameof(ArmourOverlayPointerOperator.Update))]
     private static void End(UpdateState __state){activeOverlay=__state.PreviousOverlay;RuntimeSpall.Impact=__state.PreviousImpact;}

@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Part><name>ATGM ammo box</name><description>Native finite ammunition container. Size and fill determine capacity and ammunition mass. Native manual loading is the default. Enable AutomaticAmmoBox in the ATGM Launcher Tests config section and restart to enable automatic loading for matching dedicated launchers within 2 metres. Automatic mode needs a gunner but no crew loader and adds mechanism mass/cost. Matching ordinary cannons may use this box through native manual loading.</description></Part>

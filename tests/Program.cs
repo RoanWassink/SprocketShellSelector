@@ -637,30 +637,27 @@ Check(Math.Abs(.5*5*correctedMassSpeed*correctedMassSpeed-32)<.00001,"native cha
 Check(ArmourResponseModel.ResidualSpeed(0,.8f)==0,"native stopped continuation is not revived");
 Console.WriteLine($"ARMOUR NATIVE FORMULA PASS: {checks} checks.");
 var actualEraNames=new[]{"WWI","Interwar","Earlywar","Midwar","Latewar","Coldwar"};
-foreach(var behavior in new[]{"ap","he","aphe","heat","hesh","apfsds","atgm","atgm_gun"})
-foreach(var nativeEra in actualEraNames)
+var actualStarts=new[]{new ShellNativeDate(1914,7,28),new ShellNativeDate(1920,1,1),new ShellNativeDate(1939,9,2),new ShellNativeDate(1942,1,1),new ShellNativeDate(1944,1,1),new ShellNativeDate(1945,9,3)};
+var allBehaviors=new[]{"ap","he","aphe","heat","hesh","apfsds","atgm","atgm_gun"};
+ShellEraContext NativeContext(int index, params string[] enabled)=>new(actualStarts[index],actualEraNames,actualStarts,index,new HashSet<string>(enabled));
+foreach(var behavior in allBehaviors)
+foreach(var index in Enumerable.Range(0,actualEraNames.Length))
 {
  var custom=new ShellProfile("renamed_"+behavior,"Custom",defaults,behavior);
- var expected=behavior is "ap" or "he"||nativeEra=="Coldwar"||(behavior is "aphe" or "heat"&&nativeEra is "Earlywar" or "Midwar" or "Latewar");
- Check(ShellEraPolicy.Allowed(custom,nativeEra)==expected,"actual native era x behaviour floor");
- Check(ShellEraPolicy.Effective(custom,nativeEra)!=null==expected,"shared runtime/preview resolver matches selection");
+ Check(ShellEraPolicy.Allowed(custom,NativeContext(index,behavior)),"native available tech permits behavior in ANY registered era");
+ Check(!ShellEraPolicy.Allowed(custom,NativeContext(index)),"absent native behavior tech denies in ANY era");
 }
-
-var storedAtgm=new ShellProfile("custom_alias","User missile",defaults,"atgm");
-var savedId=storedAtgm.Id;
-Check(ShellEraPolicy.Effective(storedAtgm,"Latewar")==null&&storedAtgm.Id==savedId,"incompatible imported missile retains saved ID with native fallback");
-Check(ShellEraPolicy.Effective(storedAtgm,"Coldwar")?.Id==savedId,"saved profile becomes effective again in ColdWar");
-Check(ShellEraPolicy.Effective(storedAtgm,null)==null,"unknown vehicle era fails closed");
-Check(!ShellEraPolicy.Allowed(storedAtgm with {MinimumEra="WWI"},"Latewar"),"earlier requested minimum cannot lower ATGM floor");
-var strictHe=storedAtgm with {Behavior="he",MinimumEra="Coldwar"};
-Check(!ShellEraPolicy.Allowed(strictHe,"Latewar")&&ShellEraPolicy.Allowed(strictHe,"Coldwar"),"optional minimum can restrict an earlier shell further");
-Check(!ShellEraPolicy.Allowed(strictHe with {MinimumEra="bogus"},"Coldwar"),"invalid minimum fails closed defensively");
-var capturedAvailable=new[]{storedAtgm};
-Check(!ShellEraPolicy.Allowed(capturedAvailable[0],"Latewar"),"stale ColdWar dropdown callback rechecks changed owner era");
-var eraJson=ReleaseProfiles.Defaults().Replace("\"behavior\": \"he\"","\"behavior\": \"he\", \"minimumEra\": \"Coldwar\"");
-Check(ShellProfiles.Parse(eraJson).Single(p=>p.Behavior=="he").MinimumEra=="Coldwar","optional era parses without rewriting legacy fields");
-var badEraRejected=false;try{ShellProfiles.Parse(eraJson.Replace("\"minimumEra\": \"Coldwar\"","\"minimumEra\": \"bogus\""));}catch(FormatException){badEraRejected=true;}
-Check(badEraRejected,"malformed optional minimum is rejected");
+var storedAtgm=new ShellProfile("custom_alias","User missile",defaults,"atgm");var savedId=storedAtgm.Id;
+Check(ShellEraPolicy.Effective(storedAtgm,NativeContext(4))==null&&storedAtgm.Id==savedId,"unavailable stored profile retains identity");
+Check(ShellEraPolicy.Effective(storedAtgm,NativeContext(0,"atgm"))?.Id==savedId,"technology moved to WWI permits missile without hidden floor");
+Check(ShellEraPolicy.Effective(storedAtgm,null)==null,"missing native context fails closed");
+var strictHe=storedAtgm with{Behavior="he",MinimumEra="Coldwar"};
+Check(!ShellEraPolicy.Allowed(strictHe,NativeContext(4,"he"))&&ShellEraPolicy.Allowed(strictHe,NativeContext(5,"he")),"explicit minimum resolves registered era order");
+Check(!ShellEraPolicy.Allowed(strictHe with{MinimumEra="bogus"},NativeContext(5,"he")),"unknown registered minimum fails closed");
+var eraJson=ReleaseProfiles.Defaults().Replace("\"behavior\": \"he\"","\"behavior\": \"he\", \"minimumEra\": \"Custom Era 2100\"");
+Check(ShellProfiles.Parse(eraJson).Single(p=>p.Behavior=="he").MinimumEra=="Custom Era 2100","custom registered era reference parses and is preserved");
+var badEraRejected=false;try{ShellProfiles.Parse(eraJson.Replace("Custom Era 2100"," "));}catch(FormatException){badEraRejected=true;}
+Check(badEraRejected,"blank era reference rejected");
 var nativeTypes=new ShellNativeTypeCache<string>();
 nativeTypes.Remember((IntPtr)1,"custom missile cached id","actual native APHE id");
 var cachedType="custom missile cached id";
@@ -669,7 +666,7 @@ var otherRegisterType="custom missile cached id";
 Check(!nativeTypes.Restore((IntPtr)2,otherRegisterType,ref otherRegisterType)&&otherRegisterType=="custom missile cached id","cached mapping is scoped to actual native register");
 nativeTypes.Clear((IntPtr)1);cachedType="custom missile cached id";
 Check(!nativeTypes.Restore((IntPtr)1,cachedType,ref cachedType),"register release clears stale type fallback mappings");
-var shooterProfile=ShellEraPolicy.Effective(storedAtgm,"Coldwar");
+var shooterProfile=ShellEraPolicy.Effective(storedAtgm,NativeContext(5,"atgm"));
 Check(shooterProfile!=null&&shooterProfile.Id==savedId,"legitimate launched ColdWar snapshot remains usable against earlier target");
 Console.WriteLine($"SHELL ERA REPAIR PASS: {checks} checks.");
 nativeTypes.Remember((IntPtr)1,"shared custom id","native AP for cannon A",(IntPtr)10);
@@ -688,13 +685,13 @@ Check(nativeTypes.Restore((IntPtr)1,currentAphe,ref currentAphe,(IntPtr)10)&&cur
 Console.WriteLine($"SHELL ERA AMMO CACHE PASS: {checks} checks.");
 
 var stockHeatBudget=ShellProfiles.Parse(ReleaseProfiles.Defaults()).Single(p=>p.Id=="heat");
-foreach(var period in new[]{"Earlywar","Midwar","Latewar"})
+foreach(var period in new[]{1.2,1.2,1.2})
     Check(Math.Abs(ShellChemicalBudget.Resolve(stockHeatBudget,85,period)-102)<1e-9,"stock WWII85mm HEAT budget102: "+period);
-Check(ShellChemicalBudget.Resolve(stockHeatBudget,85,"Coldwar")==340,"stock ColdWar85mm retains340");
-foreach(var period in new string?[]{"WWI","Interwar",null,"unknown"})
+Check(ShellChemicalBudget.Resolve(stockHeatBudget,85,4d)==340,"stock ColdWar85mm retains340");
+foreach(var period in new double?[]{null,double.NaN,0,21})
     Check(ShellChemicalBudget.Resolve(stockHeatBudget,85,period)==0,"unavailable era fails closed");
-Check(ShellChemicalBudget.Resolve(stockHeatBudget with{ChemicalPenetrationMm=450},85,"Midwar")==382.5,"custom450 budget retained");
-Check(ShellChemicalBudget.Resolve(stockHeatBudget with{Id="custom_heat"},85,"Midwar")==340,"alias stock numbers are exempt");
+Check(ShellChemicalBudget.Resolve(stockHeatBudget with{ChemicalPenetrationMm=450},85,1.2)==382.5,"custom450 budget retained");
+Check(ShellChemicalBudget.Resolve(stockHeatBudget with{Id="custom_heat"},85,1.2)==340,"alias stock numbers are exempt");
 var changedStockFields=new[]{
 stockHeatBudget with{Label="Personal HEAT"},stockHeatBudget with{Behavior="hesh"},
 stockHeatBudget with{NativeExplosivePower=1},stockHeatBudget with{SpallMultiplier=2},
@@ -712,15 +709,15 @@ stockHeatBudget with{Settings=stockHeatBudget.Settings with{PenetrationQuality=.
 stockHeatBudget with{Settings=stockHeatBudget.Settings with{DamageMultiplier=.9}}
 };
 foreach(var modified in changedStockFields) Check(!ShellChemicalBudget.IsStock(modified),"complete fingerprint exempts every changed field");
-Check(ShellChemicalBudget.Resolve(stockHeatBudget,105,"Midwar")==126,"generic105mm gameplaybudget126 not Gr39 historical95");
-Check(ShellChemicalBudget.Resolve(stockHeatBudget,1000,"Coldwar")==2000,"chemical cap2000 retained");
-var launchedColdwarBudget=ShellChemicalBudget.Resolve(stockHeatBudget,85,"Coldwar");
-var laterEditorBudget=ShellChemicalBudget.Resolve(stockHeatBudget,85,"Midwar");
+Check(ShellChemicalBudget.Resolve(stockHeatBudget,105,1.2)==126,"generic105mm gameplaybudget126 not Gr39 historical95");
+Check(ShellChemicalBudget.Resolve(stockHeatBudget,1000,4d)==2000,"chemical cap2000 retained");
+var launchedColdwarBudget=ShellChemicalBudget.Resolve(stockHeatBudget,85,4d);
+var laterEditorBudget=ShellChemicalBudget.Resolve(stockHeatBudget,85,1.2);
 Check(launchedColdwarBudget==340&&laterEditorBudget==102,"captured budget remains independent of subsequent era resolve");
 foreach(var unchangedChemical in ShellProfiles.Parse(ReleaseProfiles.Defaults()).Where(p=>p.Behavior is "hesh" or "atgm" or "atgm_gun"))
-    Check(ShellChemicalBudget.Resolve(unchangedChemical,85,"Coldwar")==ShellBalance.ChemicalPenetration(unchangedChemical,85),"other chemical profiles unchanged "+unchangedChemical.Id);
-Check(ShellChemicalBudget.Description(stockHeatBudget,"Midwar").Contains("1.20"),"stock UI names gameplayperiod");
-Check(ShellChemicalBudget.Description(stockHeatBudget with{Id="custom_heat"},"Midwar").Contains("exempt"),"custom UI exemption explained");
+    Check(ShellChemicalBudget.Resolve(unchangedChemical,85,4d)==ShellBalance.ChemicalPenetration(unchangedChemical,85),"other chemical profiles unchanged "+unchangedChemical.Id);
+Check(ShellChemicalBudget.Description(stockHeatBudget,1.2).Contains("1.20"),"stock UI names gameplayperiod");
+Check(ShellChemicalBudget.Description(stockHeatBudget with{Id="custom_heat"},1.2).Contains("exempt"),"custom UI exemption explained");
 Console.WriteLine($"HEAT PERIOD REVIEW PASS: {checks} checks.");
 
 Check(!ShellChemicalBudget.IsStock(stockHeatBudget with{Atgm=new AtgmSettings()}),"full fingerprint includes nested Atgm presence");
@@ -805,16 +802,176 @@ if(Environment.GetEnvironmentVariable("SHELL_REVIEW_CANDIDATE_DLL") is {} candid
  Check(candidateKinds.Count(k=>k=="heavyEra")==1,"actual frozen candidate DLL parses producer heavyEra catalogue");
  Console.WriteLine($"ACTUAL DLL CONTRACT PASS: {checks} checks.");
 }
-var dateStarts=new[]{new DateTime(1914,1,1),new DateTime(1939,9,1),new DateTime(1945,9,3),new DateTime(2100,1,1),new DateTime(3000,1,1)};
-Check(!ShellDatePolicy.Modern(new DateTime(1945,9,2),dateStarts),"modern floor previous day denied");
-Check(ShellDatePolicy.Modern(new DateTime(1945,9,3),dateStarts),"modern floor inclusive");
-Check(ShellDatePolicy.Modern(new DateTime(2100,1,1),dateStarts),"custom2100 accepted");
-Check(ShellDatePolicy.Modern(new DateTime(3000,1,1),dateStarts),"custom3000 accepted");
-Check(ShellDatePolicy.Modern(DateTime.MaxValue,dateStarts),"last modern start sentinel accepted");
-Check(!ShellDatePolicy.Modern(DateTime.MaxValue,new[]{new DateTime(1914,1,1),new DateTime(1939,9,1)}),"last early start sentinel denied");
-Check(!ShellDatePolicy.Modern(new DateTime(2100,1,1),new[]{dateStarts[1],dateStarts[0]}),"unordered timeline denied");
-Check(!ShellDatePolicy.Modern(new DateTime(2100,1,1),new[]{dateStarts[0],dateStarts[0]}),"duplicate starts denied");
-Check(!ShellDatePolicy.Modern(new DateTime(3000,1,1),new[]{dateStarts[0],DateTime.MaxValue}),"sentinel start denied");
-Check(!ShellDatePolicy.Modern(null,dateStarts),"missing date denied");
-Check(!ShellDatePolicy.Modern(new DateTime(1946,1,1),new[]{new DateTime(2100,1,1)}),"before first start denied");
-Console.WriteLine($"CUSTOM DATE POLICY PASS: {checks} checks.");
+var futureNames=new[]{"renamed early","Custom Era 2100","Space"};
+var futureStarts=new[]{new ShellNativeDate(1800,1,1),new ShellNativeDate(2100,1,1),new ShellNativeDate(3000,1,1)};
+var future=new ShellEraContext(new ShellNativeDate(2101,1,1),futureNames,futureStarts,1,new HashSet<string>(allBehaviors),7);
+foreach(var b in allBehaviors)Check(ShellEraPolicy.Allowed(storedAtgm with{Behavior=b},future),"renamed future era uses native available technology");
+Check(ShellEraPolicy.Allowed(storedAtgm with{MinimumEra="Custom Era 2100"},future),"custom minimum resolves actual registered start");
+Check(!ShellEraPolicy.Allowed(storedAtgm with{MinimumEra="Coldwar"},future),"renaming era does not invent old-name fallback");
+var moved=future with{Names=new[]{"renamed early","Custom Era 2100","Space"},Starts=new[]{new ShellNativeDate(1800,1,1),new ShellNativeDate(1850,1,1),new ShellNativeDate(1900,1,1)},Date=new ShellNativeDate(1851,1,1)};
+Check(ShellEraPolicy.Allowed(storedAtgm with{MinimumEra="Custom Era 2100"},moved),"moving era start before1945 takes effect");
+Check(ShellEraPolicy.Valid(future with{Date=ShellNativeDate.Maximum,Index=2}),"native classified last-era sentinel valid");
+Check(!ShellEraPolicy.Valid(future with{Date=ShellNativeDate.Maximum,Index=1}),"sentinel never allowed in nonlast era");
+Check(!ShellEraPolicy.Allowed(storedAtgm,future with{Date=ShellNativeDate.Maximum,Index=2,AvailableBehaviors=new HashSet<string>()}),"sentinel does not invent technology availability");
+Check(!ShellEraPolicy.Valid(future with{Starts=new[]{futureStarts[1],futureStarts[0],futureStarts[2]}}),"unordered timeline rejected");
+Check(!ShellEraPolicy.Valid(future with{Names=new[]{"same","same","Space"}}),"ambiguous era identity rejected");
+Check(!ShellEraPolicy.Valid(future with{Index=-1}),"native unknown classification denied");
+Check(!ShellEraPolicy.Valid(future with{Date=new ShellNativeDate(2099,1,1)}),"date before native era start denied");
+Check(!ShellDatePolicy.ValidTimeline(new[]{ShellNativeDate.Maximum}),"sentinel cannot be an era start");
+Check(ShellChemicalBudget.Resolve(stockHeatBudget,85,7)==595,"custom dated native factor directly controls stock HEAT");
+Check(ShellChemicalBudget.Resolve(stockHeatBudget with{ChemicalPenetrationMm=450},85,7)==382.5,"native factor never overwrites custom shell calibration");
+Check(ShellChemicalBudget.Resolve(stockHeatBudget with{ChemicalPenetrationMm=450},85,7,false)==0,"native unavailable behavior gate also denies custom chemical shell");
+Check(ShellProfiles.Parse(ReleaseProfiles.Defaults()).All(p=>p.MinimumEra==null),"stock defaults have no duplicate era floor requiring migration");
+Console.WriteLine($"FR011 NATIVE DATE POLICY PASS: {checks} checks.");
+
+var yearZero=new ShellEraContext(new ShellNativeDate(0,1,1),new[]{"Year zero","Custom"},new[]{new ShellNativeDate(0,1,1),new ShellNativeDate(1,1,1)},0,new HashSet<string>(allBehaviors));
+Check(ShellEraPolicy.Allowed(storedAtgm,yearZero),"native year0 design and era accepted with available tech");
+Check(ShellEraPolicy.Valid(yearZero with{Date=new ShellNativeDate(1,1,1),Index=1}),"year0 and year1 remain distinct");
+Check(!ShellEraPolicy.Valid(yearZero with{Date=new ShellNativeDate(1,1,1)}),"mismatched native index rejected");
+Check(ShellDatePolicy.ValidTimeline(new[]{new ShellNativeDate(0,1,1),new ShellNativeDate(1,1,1)}),"native year0 timeline supported");
+Check(!ShellDatePolicy.ValidTimeline(new[]{new ShellNativeDate(0,13,1)}),"invalid native date denied");
+Check(!ShellDatePolicy.ValidTimeline(new[]{new ShellNativeDate(1900,2,29)}),"invalid nonleap date denied");
+Console.WriteLine($"FR011 YEAR ZERO PASS: {checks} checks.");
+
+foreach(var b in allBehaviors)
+{
+ using var stream=typeof(ShellProfiles).Assembly.GetManifestResourceStream("NativeShellTech."+b+".json")!;
+ using var reader=new StreamReader(stream);using var doc=System.Text.Json.JsonDocument.Parse(reader.ReadToEnd());var data=doc.RootElement;
+ var expected=b is "ap" or "he"?"1914.07.28":b is "aphe" or "heat"?"1939.09.02":"1945.09.03";
+ Check(data.GetProperty("date").GetString()==expected,"native example boundary preserves previous stock availability "+b);
+ Check(data.GetProperty("type").GetString()=="shellSelector_"+b&&data.GetProperty("properties").GetProperty("enabled").GetBoolean(),"native technology type/enabled property "+b);
+}
+using(var stream=typeof(ShellProfiles).Assembly.GetManifestResourceStream("NativeShellTech.heat-modern.json")!)
+using(var reader=new StreamReader(stream))
+using(var doc=System.Text.Json.JsonDocument.Parse(reader.ReadToEnd()))
+{
+ Check(doc.RootElement.GetProperty("date").GetString()=="1945.09.03","later stock HEAT record preserves boundary");
+ Check(doc.RootElement.GetProperty("properties").GetProperty("penetrationPerCalibre").GetDouble()==4,"later native factor preserves calibration");
+}
+using(var stream=typeof(ShellProfiles).Assembly.GetManifestResourceStream("NativeShellTech.heat.json")!)
+using(var reader=new StreamReader(stream))
+using(var doc=System.Text.Json.JsonDocument.Parse(reader.ReadToEnd()))
+ Check(doc.RootElement.GetProperty("properties").GetProperty("penetrationPerCalibre").GetDouble()==1.2,"initial native HEAT factor preserved");
+Check(ShellEraPolicy.Allowed(storedAtgm with{Behavior="heat"},NativeContext(2,"heat")),"1939Earlywar boundary has no1940 regression");
+Check(ShellChemicalBudget.Resolve(stockHeatBudget,85,1.2)==102,"1939 native heat factor baseline");
+Check(ShellChemicalBudget.Resolve(stockHeatBudget,85,4)==340,"postwar native heat factor baseline");
+Console.WriteLine($"FR011 NATIVE DATA PASS: {checks} checks.");
+
+foreach(var p in ShellProfiles.Parse(ReleaseProfiles.Defaults()))Check(AtgmLauncherModel.Allows(p)==(p.Behavior=="atgm"),"dedicated launcher admits only launcher ATGM profiles");
+Check(!AtgmLauncherModel.Allows(null),"dedicated launcher cannot fall back to native shell");
+Check(Guid.TryParse(AtgmLauncherModel.Guid,out var launcherGuid)&&launcherGuid!=Guid.Empty,"own stable part GUID");
+Check(AtgmLauncherModel.Boxes.Length==5,"four walls and mount, no closed muzzle plate");
+foreach(var box in AtgmLauncherModel.Boxes)
+{
+ Check(box.Width>0&&box.Height>0&&box.Length>0,"valid own model box dimensions");
+ Check(box.Z+box.Length/2<=.00001,"all cosmetic geometry behind native muzzle");
+}
+Check(AtgmLauncherModel.Boxes.Where(b=>b.Name!="mount").All(b=>Math.Abs(b.Z+.65)<.0001&&Math.Abs(b.Length-1.3)<.0001),"generic1300mm tube envelope");
+Check(AtgmLauncherModel.Boxes.Where(b=>b.Name!="mount").All(b=>Math.Abs(b.X)>0.1||Math.Abs(b.Y)>0.1),"muzzle centre remains open");
+Console.WriteLine($"FR001 LAUNCHER MODEL/GATE PASS: {checks} checks.");
+var rearTube=AtgmLauncherModel.SegmentBoxes(.8f,-1f,true);
+var frontTube=AtgmLauncherModel.SegmentBoxes(1f,0,false);
+Check(rearTube.Length==5&&frontTube.Length==4,"only native rear group includes mount");
+Check(rearTube.All(b=>b.Z+b.Length/2<=-1+.00001&&b.Z-b.Length/2>=-1.8-.00001),"rear box follows native group bounds");
+Check(frontTube.All(b=>Math.Abs(b.Z+b.Length/2)<.00001&&Math.Abs(b.Z-b.Length/2+1)<.00001),"front box follows native muzzle and group length");
+Check(rearTube.Concat(frontTube).Where(b=>b.Name!="mount").All(b=>Math.Abs(b.X)>.1||Math.Abs(b.Y)>.1),"all native group muzzle centres remain open");
+Check(AtgmLauncherModel.SegmentBoxes(.05f,0,true).All(b=>b.Z-b.Length/2>=-.05001&&b.Z+b.Length/2<=.00001),"short native segments keep mount within segment");
+foreach(var length in new[]{0f,-1f,float.NaN,float.PositiveInfinity})
+{
+ bool invalid=false;try{AtgmLauncherModel.SegmentBoxes(length,0,false);}catch(ArgumentOutOfRangeException){invalid=true;}
+ Check(invalid,"invalid native segment length rejected");
+}
+Console.WriteLine($"FR001 NATIVE SEGMENT GEOMETRY PASS: {checks} checks.");
+Check(AtgmAmmoBoxRules.Matches(true,"saclos","saclos",120,120,440,440,2),"box matches at exact reach");
+Check(!AtgmAmmoBoxRules.Matches(false,"saclos","saclos",120,120,440,440,1),"cross vehicle box rejected even identical cannon sizes");
+Check(!AtgmAmmoBoxRules.Matches(true,"saclos","mclos",120,120,440,440,1),"profile identity separates otherwise same native ammo");
+Check(!AtgmAmmoBoxRules.Matches(true,"saclos","saclos",135,120,440,440,1),"calibre mismatch rejected");
+Check(!AtgmAmmoBoxRules.Matches(true,"saclos","saclos",120,120,100,440,1),"propellant mismatch rejected");
+foreach(var d in new[]{2.001,-1,double.NaN,double.PositiveInfinity})Check(!AtgmAmmoBoxRules.Matches(true,"saclos","saclos",120,120,440,440,d),"invalid/out of reach box rejected");
+Check(Math.Abs(AtgmAmmoBoxRules.Seconds(135,100)-15)<.00001,"reference missile reload calibrated at15s");
+Check(AtgmAmmoBoxRules.Seconds(180,440)>AtgmAmmoBoxRules.Seconds(120,440),"larger missile cycle slower");
+Check(AtgmAmmoBoxRules.MechanismMass(8)==26&&AtgmAmmoBoxRules.MechanismCost(8)==570,"eight round mechanism mass/cost premium");
+Check(Guid.TryParse(AtgmAmmoBoxRules.Guid,out var boxGuid)&&boxGuid!=launcherGuid,"box unique stable GUID");
+Console.WriteLine($"FR001 BOX RULES PASS: {checks} checks.");
+Check(!AtgmAmmoBoxRules.WaivesLoader(false,true,19,19,true),"vehicle local VUID collision never waives foreign loader");
+Check(!AtgmAmmoBoxRules.WaivesLoader(true,false,19,19,true),"ordinary cannon loader never waived");
+Check(!AtgmAmmoBoxRules.WaivesLoader(true,true,18,19,true),"other cannon on same vehicle loader never waived");
+Check(!AtgmAmmoBoxRules.WaivesLoader(true,true,19,19,false),"incompatible box never waives loader");
+Check(AtgmAmmoBoxRules.WaivesLoader(true,true,19,19,true),"matching own launcher loader waived");
+Console.WriteLine($"FR001 LOADER SCOPE PASS: {checks} checks.");
+var saclosReference=AtgmAmmoBoxRules.ReferenceLabel("Unnamed Cannon",120,421,"Konkurs","sight");
+var mclosReference=AtgmAmmoBoxRules.ReferenceLabel("Unnamed Cannon",120,422,"MCLOS custom","keyboard");
+Check(saclosReference.Contains("SACLOS")&&saclosReference.Contains("421"),"reference names SACLOS and native ID");
+Check(mclosReference.Contains("MCLOS")&&mclosReference.Contains("MCLOS custom")&&mclosReference.Contains("422"),"reference names MCLOS profile and native ID");
+Check(saclosReference!=mclosReference,"same name/calibre reference entries distinguish profiles");
+Check(AtgmAmmoBoxRules.ReferenceLabel("Unnamed Cannon",120,422,null,null).Contains("profile unavailable"),"unavailable reference clearly labelled");
+Console.WriteLine($"FR001 REFERENCE UI PASS: {checks} checks.");
+
+Check(AtgmOpticalScope.Allows(true,true,1,false,true,true),"unique player native own weapon sight accepted");
+Check(!AtgmOpticalScope.Allows(false,true,1,false,true,true),"foreign vehicle optical sight rejected");
+Check(!AtgmOpticalScope.Allows(true,false,1,false,true,true),"inactive optical sight rejected");
+foreach(var n in new[]{0,2})Check(!AtgmOpticalScope.Allows(true,true,n,false,true,true),"missing/ambiguous own sight association rejected");
+Check(!AtgmOpticalScope.Allows(true,true,1,true,true,true),"ordinary shared sight rejected");
+Check(!AtgmOpticalScope.Allows(true,true,1,false,false,true),"native weapon sight mismatch rejected");
+Check(!AtgmOpticalScope.Allows(true,true,1,false,true,false),"non ATGM profile rejected");
+Console.WriteLine($"FR001 OPTICAL SCOPE PASS: {checks} checks.");
+
+var initialLedger=new AtgmInitialRoundLedger();
+Check(!initialLedger.Claim(0,421,true,true,true),"no native instance no initial round");
+Check(!initialLedger.Claim(1,421,false,true,true),"ordinary weapon no initial round");
+Check(!initialLedger.Claim(1,421,true,false,true),"invalid profile no initial round");
+Check(!initialLedger.Claim(1,421,true,true,false),"used task no initial round");
+Check(initialLedger.Claim(1,421,true,true,true),"first own launcher eligible once");
+foreach(var eventName in new[]{"rebuild","enable","profile switch","firegroup","scope","same instance new task"})Check(!initialLedger.Claim(1,421,true,true,true),"no refill on "+eventName);
+Check(initialLedger.Claim(1,422,true,true,true),"second launcher independent");
+Check(initialLedger.Claim(2,421,true,true,true),"same VUID other native vehicle independent");
+initialLedger.End(1);
+Check(!initialLedger.Claim(2,421,true,true,true),"ending one vehicle keeps other ledger");
+Check(initialLedger.Claim(3,421,true,true,true),"fresh native Play has standard round");
+Console.WriteLine($"FR001 INITIAL ROUND LIFETIME PASS: {checks} checks.");
+
+var nativeRoundCost=AtgmInitialRoundResources.Cost(135,100,20);
+Check(Math.Abs(nativeRoundCost.Assembly-21.565)<.01,"native one-round assembly cost reference");
+Check(nativeRoundCost.Material>20*.48599f,"native material includes propellant volume and round mass");
+Check(AtgmInitialRoundResources.Cost(135,200,20).Material>nativeRoundCost.Material,"native propellant cost scales with length");
+Check(AtgmInitialRoundResources.Cost(160,100,20).Assembly>nativeRoundCost.Assembly,"native larger calibre assembly cost increases");
+Console.WriteLine($"FR001 INITIAL ROUND RESOURCES PASS: {checks} checks.");
+
+Check(AtgmInitialAssemblyRules.EmptyFirstAssembly(true,3,-1,0),"first NeverLoaded supported");
+Check(AtgmInitialAssemblyRules.EmptyFirstAssembly(true,2,-1,0),"first native Unloaded supported without resetting state");
+Check(!AtgmInitialAssemblyRules.EmptyFirstAssembly(false,2,-1,0),"repeat assembly not initial grant");
+Check(!AtgmInitialAssemblyRules.EmptyFirstAssembly(true,2,-1,10),"native previously fired weapon rejected");
+Check(!AtgmInitialAssemblyRules.EmptyFirstAssembly(true,0,19,0),"already loaded native round not overwritten");
+Check(!AtgmInitialAssemblyRules.EmptyFirstAssembly(true,1,-1,0),"native in progress loading not overridden");
+Check(!AtgmInitialAssemblyRules.EmptyFirstAssembly(true,2,19,0),"valid loaded type blocks ambiguous initial state");
+Check(AtgmInitialAssemblyRules.NeedsLauncherDefault(true,null)&&AtgmInitialAssemblyRules.NeedsLauncherDefault(true,ShellProfiles.Vanilla),"own unselected/Vanilla default migration");
+foreach(var id in new[]{"saclos","mclos","custom_atgm","unavailable_custom"})Check(!AtgmInitialAssemblyRules.NeedsLauncherDefault(true,id),"existing explicit profile retained "+id);
+Check(!AtgmInitialAssemblyRules.NeedsLauncherDefault(false,ShellProfiles.Vanilla),"ordinary Vanilla unchanged");
+Console.WriteLine($"FR001 INITIAL ASSEMBLY/DEFAULT PASS: {checks} checks.");
+Check(AtgmOpticalScope.ValidProjection(.5f,.5f,100),"front optical target projects");
+Check(!AtgmOpticalScope.ValidProjection(.5f,.5f,0),"camera plane cannot define mask");
+Check(!AtgmOpticalScope.ValidProjection(.5f,.5f,-100),"behind-camera optical target rejected");
+Check(!AtgmOpticalScope.ValidProjection(float.NaN,.5f,100),"nonfinite optical coordinate rejected");
+Check(!AtgmOpticalScope.ValidProjection(.5f,float.PositiveInfinity,100),"nonfinite vertical coordinate rejected");
+Check(!AtgmOpticalScope.ValidProjection(.5f,.5f,float.NaN),"nonfinite depth rejected");
+Console.WriteLine($"FR001 OPTICAL MASK PROJECTION PASS: {checks} checks.");
+
+var pluginMigrationTemp=Path.Combine(Path.GetTempPath(),"shell-plugin-migration-"+Guid.NewGuid());
+Directory.CreateDirectory(pluginMigrationTemp);
+try
+{
+    var legacy=Path.Combine(pluginMigrationTemp,"nl.roan.sprocket.shellselector.cfg");
+    var current=Path.Combine(pluginMigrationTemp,"sprocket.shellselector.cfg");
+    Check(!PluginConfigMigration.EnsureCurrent(pluginMigrationTemp)&&!File.Exists(current),"fresh install has no legacy configuration to copy");
+    var custom=System.Text.Encoding.UTF8.GetBytes("# custom settings\n[ATGM Launcher Tests]\nAutomaticAmmoBox = true\nOpticalSightDirection = true\n[Future module]\nUnknownKey = custom-value\n");
+    File.WriteAllBytes(legacy,custom);
+    Check(PluginConfigMigration.EnsureCurrent(pluginMigrationTemp),"legacy plugin identity migrated before native CFG bind");
+    Check(File.ReadAllBytes(current).SequenceEqual(custom)&&File.ReadAllBytes(legacy).SequenceEqual(custom),"all customized and unknown configuration bytes copied; legacy rollback retained");
+    File.WriteAllText(current,"[ATGM Audio]\nEnabled = false\n");
+    var newer=File.ReadAllBytes(current);
+    Check(!PluginConfigMigration.EnsureCurrent(pluginMigrationTemp)&&File.ReadAllBytes(current).SequenceEqual(newer),"existing neutral configuration wins without merge or reset");
+    File.Delete(current);File.WriteAllText(legacy,"invalid or future-format config");
+    Check(PluginConfigMigration.EnsureCurrent(pluginMigrationTemp)&&File.ReadAllText(current)=="invalid or future-format config","migration does not silently repair or replace malformed legacy settings");
+}
+finally{Directory.Delete(pluginMigrationTemp,true);}
+Console.WriteLine($"PLUGIN IDENTITY MIGRATION PASS: {checks} checks.");

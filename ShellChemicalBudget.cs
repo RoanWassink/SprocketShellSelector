@@ -1,19 +1,15 @@
 namespace SprocketShellSelector;
-
-// Only the complete, unchanged embedded stock record receives the pack calibration.
-// A copied ID, renamed profile or any custom field is deliberately exempt.
 internal static class ShellChemicalBudget
 {
-    private static readonly Lazy<ShellProfile> Stock = new(() =>
-        ShellProfiles.Parse(ReleaseProfiles.Defaults()).Single(p => p.Id == "heat"));
-    internal static bool IsStock(ShellProfile profile) => profile == Stock.Value;
-    internal static double Resolve(ShellProfile profile, double calibreMm, string? firingEra)
+    private static readonly Lazy<ShellProfile> Stock=new(()=>ShellProfiles.Parse(ReleaseProfiles.Defaults()).Single(p=>p.Id=="heat"));
+    internal static bool IsStock(ShellProfile p)=>p==Stock.Value;
+    internal static double Resolve(ShellProfile p,double calibreMm,double? nativeFactor,bool available=true)
     {
-        if (!ShellEraPolicy.Allowed(profile, firingEra)) return 0;
-        if (!IsStock(profile)) return ShellBalance.ChemicalPenetration(profile, calibreMm);
-        return Math.Clamp(calibreMm * (ShellEraPolicy.Rank(firingEra) == 5 ? 4 : 1.2), 1, 2000);
+        if(!available)return 0;
+        if(!IsStock(p))return ShellBalance.ChemicalPenetration(p,calibreMm);
+        return nativeFactor is {} factor&&double.IsFinite(factor)&&factor>0&&factor<=20 ? Math.Clamp(calibreMm*factor,1,2000):0;
     }
-    internal static string Description(ShellProfile profile, string? firingEra) => IsStock(profile)
-        ? $"Stock HEAT period calibration: {(ShellEraPolicy.Rank(firingEra) == 5 ? "ColdWar 4.00" : "WWII 1.20")} x calibre (gameplay)."
-        : "Custom chemical profile: configured penetration retained; stock period calibration exempt.";
+    internal static string Description(ShellProfile p,double? nativeFactor)=>IsStock(p)
+        ? nativeFactor is {} factor&&double.IsFinite(factor)&&factor>0&&factor<=20 ? FormattableString.Invariant($"Native dated HEAT technology: {factor:0.00} x calibre (gameplay).") : "Native HEAT technology has no valid penetrationPerCalibre; profile unavailable."
+        : "Custom chemical profile: configured penetration retained; stock technology calibration exempt.";
 }

@@ -1,6 +1,6 @@
 # Making your own shell profiles
 
-This guide describes **v0.11.0**. Profiles do not change the cannon's propellant setting or visible ammunition model.
+This guide describes **v0.12.5**. Profiles do not change the cannon's propellant setting or visible ammunition model.
 
 ## Add a shell
 
@@ -9,7 +9,7 @@ This guide describes **v0.11.0**. Profiles do not change the cannon's propellant
 3. Give it a unique `id` and `label`. Set `behavior` to the shell mechanics you want.
 4. Save valid JSON, restart, and select it on the cannon. The simulator has its own separate selection.
 
-Use `{"schemaVersion": 1, "profiles": [ ... ]}`. Separate objects with commas, with no trailing commas or comments. Up to 16 profiles; IDs use lowercase letters, digits, `_`, `-` (1â€“40 characters). Labels are unique ignoring case (1â€“80 characters). `vanilla` / `Vanilla ammunition` are reserved. Unknown/duplicate keys or invalid values reject the file.
+Use `{"schemaVersion": 1, "profiles": [ ... ]}`. Separate objects with commas, with no trailing commas or comments. Up to 16 profiles; IDs use lowercase letters, digits, `_`, `-` (1–40 characters). Labels are unique ignoring case (1–80 characters). `vanilla` / `Vanilla ammunition` are reserved. Unknown/duplicate keys or invalid values reject the file.
 
 ## Copyable APFSDS example
 
@@ -44,8 +44,6 @@ Add this object to the existing array:
 | `he` | Native impact blast | Positive `nativeExplosivePower`; `explosionScale` |
 | `heat` | High chemical first-plate budget, concentrated spall, spaced-armour gap loss | Positive `chemicalPenetrationMm`, `secondPlatePenetrationFactor`, `spallMultiplier`, `coneHalfAngleDegrees`, `explosionScale` |
 | `hesh` | Heavy broad spall, lower chemical budget, spaced-armour gap loss | Same fields as HEAT |
-| `atgm` | Launcher-style guided/powered missile with HEAT impact | ATGM motor/guidance fields and chemical payload |
-| `atgm_gun` | Gun-launched missile with the same guidance/impact | Normally cannon launch mode; separate sound |
 
 All ten numeric ballistic fields in the example remain required for every behavior. Start from the corresponding built-in example in [default-shells.json](default-shells.json), rather than changing only a label. If `behavior` is absent, legacy IDs `apfsds` and `aphe` infer those behaviors; all other IDs infer `ap`. New custom shells should always specify it.
 
@@ -55,23 +53,23 @@ Calibre is full gun calibre. Ranges are inclusive.
 
 | Setting | Range | Interaction |
 |---|---|---|
-| `penetratorDiameterFactor` | 0.05â€“0.9 | Projectile diameter / gun calibre; mass scales with diameter squared |
-| `penetratorLengthInCalibres` | 0.5â€“10 | Length / full gun calibre; mass scales with length |
-| `penetratorDensity` | 1000â€“25000 | kg/mÂ³; mass scales with density |
-| `velocityEfficiency` | 0.1â€“2 | Multiplies mass-based speed factor |
-| `velocityMultiplier` | 0.1â€“4 | Further speed tuning before limits |
-| `maximumVelocityFactor` | 1â€“4 | Maximum multiple of vanilla muzzle speed; values below 1 are invalid for every behavior |
-| `maximumVelocity` | 100â€“5000 | Final absolute speed cap in m/s |
-| `penetrationQuality` | 0.1â€“4 | Higher improves penetration via native constant; no direct speed change |
-| `fragmentDamageMultiplier` | 0.01â€“1 | Health-damage scaling for `ap`; APFSDS/APHE/HEAT/HESH use dedicated damage handling instead |
+| `penetratorDiameterFactor` | 0.05–0.9 | Projectile diameter / gun calibre; mass scales with diameter squared |
+| `penetratorLengthInCalibres` | 0.5–10 | Length / full gun calibre; mass scales with length |
+| `penetratorDensity` | 1000–25000 | kg/mÂ³; mass scales with density |
+| `velocityEfficiency` | 0.1–2 | Multiplies mass-based speed factor |
+| `velocityMultiplier` | 0.1–4 | Further speed tuning before limits |
+| `maximumVelocityFactor` | 1–4 | Maximum multiple of vanilla muzzle speed; values below 1 are invalid for every behavior |
+| `maximumVelocity` | 100–5000 | Final absolute speed cap in m/s |
+| `penetrationQuality` | 0.1–4 | Higher improves penetration via native constant; no direct speed change |
+| `fragmentDamageMultiplier` | 0.01–1 | Health-damage scaling for `ap`; APFSDS/APHE/HEAT/HESH use dedicated damage handling instead |
 
 ```text
-diameter = calibreMetres Ã— diameterFactor
-length   = calibreMetres Ã— lengthInCalibres
-mass     = Ï€/4 Ã— diameterÂ² Ã— length Ã— density
-raw speed factor = sqrt((1.59e-5 Ã— calibreMmÂ³) / mass)
-                   Ã— velocityEfficiency Ã— velocityMultiplier
-speed = min(vanillaSpeed Ã— clamp(raw factor, 1, maximumVelocityFactor),
+diameter = calibreMetres × diameterFactor
+length   = calibreMetres × lengthInCalibres
+mass     = Ï€/4 × diameter² × length × density
+raw speed factor = sqrt((1.59e-5 × calibreMmÂ³) / mass)
+                   × velocityEfficiency × velocityMultiplier
+speed = min(vanillaSpeed × clamp(raw factor, 1, maximumVelocityFactor),
             maximumVelocity)
 ```
 
@@ -84,7 +82,7 @@ Every numeric setting must be finite and within its inclusive range above or in 
 v0.9.8 reports the offending profile, JSON field, received value and limits, for example:
 
 ```text
-Profile 'early_heat': maximumVelocityFactor is 0.75; expected 1â€“4 (finite, inclusive).
+Profile 'early_heat': maximumVelocityFactor is 0.75; expected 1–4 (finite, inclusive).
 ```
 
 Earlier builds, including v0.9.4, instead report `Invalid APFSDS balance setting` for any behavior using the shared validator. This can come from a HEAT profile even when APFSDS profiles are valid. Invalid custom configurations are rejected and left intact; the mod does not silently replace their settings. Correct the reported field in `BepInEx/config/sprocket.shellselector.shells.json`, then restart the game. These messages do not relax the ranges or change the speed formula.
@@ -93,8 +91,8 @@ Earlier builds, including v0.9.4, instead report `Invalid APFSDS balance setting
 APFSDS also applies:
 
 ```text
-effective quality = clamp(penetrationQuality Ã— sqrt(lengthInCalibres/5), 0.1, 4)
-rod cone modifier = clamp(1 + (5-lengthInCalibres) Ã— 0.06, 0.7, 1.25)
+effective quality = clamp(penetrationQuality × sqrt(lengthInCalibres/5), 0.1, 4)
+rod cone modifier = clamp(1 + (5-lengthInCalibres) × 0.06, 0.7, 1.25)
 K = clamp(round(vanillaK / effectiveQuality^(1/1.43)), 1, 65535)
 ```
 
@@ -104,13 +102,13 @@ Other behaviors use the configured quality directly. More quality means lower K 
 
 | Setting | Range | Meaning |
 |---|---|---|
-| `chemicalPenetrationMm` | 0â€“2000; positive for HEAT/HESH/ATGM | Initial RHA capacity at a **100mm gun**; actual capacity is value Ã— calibre/100, bounded to 1â€“2000mm |
-| `secondPlatePenetrationFactor` | 0.01â€“1 | Lower bound of each air-gap retention curve, applied to CURRENT remaining penetration; defaults HEAT .15, HESH .10 |
-| `airGapLossPerCalibre` | 0â€“100 | Additional gap-loss sensitivity; HEAT defaults .35, HESH 12; independently configurable per profile. Zero disables extra gap loss |
-| `nativeExplosivePower` | 0â€“500; positive for HE | Reference native blast power at 100mm; scales with calibreÂ³ and is capped at 500. Not calibrated kg TNT |
-| `spallMultiplier` | 1â€“12 | HEAT/HESH fragment volume/count tuning; release reference values HEAT 1.5, HESH 8 |
-| `coneHalfAngleDegrees` | 1â€“90 | HEAT/HESH half-angle: default HEAT 8 gives 16Â° total; HESH 70 gives 140Â° |
-| `explosionScale` | 0.1â€“3 | HE/HEAT/HESH visual asset scale, also scaled with calibre; no direct damage change |
+| `chemicalPenetrationMm` | 0–2000; positive for HEAT/HESH/ATGM | Initial RHA capacity at a **100mm gun**; actual capacity is value × calibre/100, bounded to 1–2000mm |
+| `secondPlatePenetrationFactor` | 0.01–1 | Lower bound of each air-gap retention curve, applied to CURRENT remaining penetration; defaults HEAT .15, HESH .10 |
+| `airGapLossPerCalibre` | 0–100 | Additional gap-loss sensitivity; HEAT defaults .35, HESH 12; independently configurable per profile. Zero disables extra gap loss |
+| `nativeExplosivePower` | 0–500; positive for HE | Reference native blast power at 100mm; scales with calibreÂ³ and is capped at 500. Not calibrated kg TNT |
+| `spallMultiplier` | 1–12 | HEAT/HESH fragment volume/count tuning; release reference values HEAT 1.5, HESH 8 |
+| `coneHalfAngleDegrees` | 1–90 | HEAT/HESH half-angle: default HEAT 8 gives 16° total; HESH 70 gives 140° |
+| `explosionScale` | 0.1–3 | HE/HEAT/HESH visual asset scale, also scaled with calibre; no direct damage change |
 
 Example HEAT extras, keeping all required ballistic fields:
 
@@ -198,5 +196,9 @@ See [ATGM.md](ATGM.md) for controls, guidance references and rollback.
 
 Before ignition, native ballistics are used; at ignition actual speed and heading are captured as the powered phase starts. The curve describes commanded speed, not a physical thrust/fuel model. Missing burn/coast fields default to zero and preserve legacy sustained power. Default examples use burn time 4 s and coast loss 1 m/s². Both ATGM behaviors share guidance and HEAT impact; their audio can be overridden independently.
 
-## Era availability in v0.12.3-heavyera.1
-Profiles can declare minimumEra as ww1/interwar/earlywar/midwar/latewar/coldwar. An omitted/null value uses the behavior floor. AP/HE begin in WWI; APHE/HEAT in Earlywar; HESH/APFSDS/ATGM/gun-launched ATGM in Coldwar. minimumEra can delay a profile but cannot bypass that floor. A profile stored on an imported earlier-era cannon retains its saved identity; an unavailable profile does not grant its modern effect there. Back up your JSON, add the field only to supported current consumers, then restart.
+
+## Native technology availability
+
+Your profile's `behavior` must have an available native `shellSelector_<behavior>` Technology record with `properties.enabled: true`. The supplied records cover all behaviors; their dates use the actual vehicle technology frame. Edit the Technology JSON and restart to change availability. Profile IDs remain unchanged when unavailable; native ammunition is used as fallback.
+
+Only unchanged stock HEAT adopts its active technology's `penetrationPerCalibre`. Custom/edited HEAT retains the profile's chemical budget. Copy the shell JSON examples under `examples/` only when desired; preserve existing customized configuration. See [technology dates](README.md#native-technology-and-dates).

@@ -24,7 +24,7 @@ internal static class RuntimeShellSelection
         internal readonly string Guid=Type.Guid.ToString();
     }
     private static readonly Dictionary<IntPtr, Selection> Selections = new();
-    private static readonly Dictionary<(IntPtr, string, float, float, float, ushort, float,string,string?), RegisteredDart> Types = new();
+    private static readonly Dictionary<(IntPtr, string, float, float, float, ushort, float,string,string?,double), RegisteredDart> Types = new();
     private static readonly Dictionary<string, float> DamageFactors = new();
     private static readonly Dictionary<string, (string Id, float GunDiameter,string? FiringEra,double ChemicalBudget)> ImpactProfiles = new();
     private static readonly ShellNativeTypeCache<ProjectileTypeID> NativeTypes=new();
@@ -84,7 +84,36 @@ internal static class RuntimeShellSelection
         Selections.TryGetValue(blueprint.Pointer, out var selection)
         ? profiles.FirstOrDefault(p => p.Id == selection.ProfileId) : null;
 
-    internal static ShellProfile? CannonProfile(Cannon cannon) => RuntimeShellEra.Resolve(Profile(cannon.Blueprint),cannon.Vehicle);
+    internal static ShellProfile? CannonProfile(Cannon cannon)
+    {
+        var stored=Profile(cannon.Blueprint);
+        if(RuntimeAtgmLauncher.IsLauncher(cannon))
+        {
+            if(!Enabled||!RuntimeAtgmLauncher.Ready)return null;
+            var selectedId=Selections.TryGetValue(cannon.Blueprint.Pointer,out var saved)?saved.ProfileId:null;
+            if(AtgmInitialAssemblyRules.NeedsLauncherDefault(true,selectedId))
+            {
+                stored=profiles.Where(p=>AtgmLauncherModel.Allows(p)&&RuntimeShellEra.Allowed(p,cannon.Vehicle)).OrderBy(p=>p.Atgm!.GuidanceMode=="sight"?0:1).FirstOrDefault();
+                if(stored!=null&&!OrdinarySharesBlueprint(cannon))
+                {
+                    // Existing native blueprint selection/save mechanism; once only.
+                    Selections[cannon.Blueprint.Pointer]=new(cannon.Blueprint,stored.Id);
+                    cannon.Blueprint.MarkModified();
+                    Plugin.ModLog.LogInfo($"[ATGM launcher] DEFAULT cannon={cannon.VUID.Value} profile={stored.Id}; unselected/Vanilla migrated, existing custom choice retained.");
+                }
+            }
+            if(!AtgmLauncherModel.Allows(stored))return null;
+        }
+        return RuntimeShellEra.Resolve(stored,cannon.Vehicle);
+    }
+
+    private static bool OrdinarySharesBlueprint(Cannon own)
+    {
+        var items=own.Vehicle.ObjectReader.Items;bool foundOwn=false;
+        int Count<T>(Il2CppSystem.Collections.Generic.IReadOnlyList<T> list)=>list.Cast<Il2CppSystem.Collections.Generic.IReadOnlyCollection<T>>().Count;
+        for(int i=0;i<Count(items);i++){var parts=items[i].Components;for(int j=0;j<Count(parts);j++)if(parts[j].TryCast<Cannon>() is {} c){if(c.Pointer==own.Pointer)foundOwn=true;if(!RuntimeAtgmLauncher.IsLauncher(c)&&c.Blueprint.Pointer==own.Blueprint.Pointer)return true;}}
+        return !foundOwn; // Wait for native ownership enumeration before persisting; never mutate an ordinary shared blueprint.
+    }
 
     internal static ShellProfile? SelectedProfile(CannonBehaviour weapon) =>
         weapon.mount?.TryCast<Cannon>() is {} cannon ? CannonProfile(cannon) : null;
@@ -113,8 +142,9 @@ internal static class RuntimeShellSelection
         {
             var cannon = __instance.Component;
             var blueprint = cannon.Blueprint;
-            var available=RuntimeShellEra.Available(profiles,cannon.Vehicle);
+            IReadOnlyList<ShellProfile> available=RuntimeShellEra.Available(profiles,cannon.Vehicle).Where(p=>!RuntimeAtgmLauncher.IsLauncher(cannon)||AtgmLauncherModel.Allows(p)).ToArray();
             var labels=RuntimeShellEra.Labels(available);
+            if(RuntimeAtgmLauncher.IsLauncher(cannon))labels[0]="Unavailable / ATGM launcher only";
             var ui = layout.TryCast<IGUIElementDrawer>();
             if (ui == null || blueprint == null) return;
             layout.EndAllDropdowns();
@@ -139,7 +169,11 @@ internal static class RuntimeShellSelection
                         __instance.RequestRedraw();
                     })), "Applies to cannons sharing this design. APFSDS overrides loaded AP/APHE shots; rack sizes and loading remain vanilla in this beta.");
                 if(Profile(blueprint) is {} stored && !RuntimeShellEra.Allowed(stored,cannon.Vehicle))
-                    ui.InfoField("Saved shell profile unavailable in this era; native ammunition used. Selection is retained.",2);
+                    ui.InfoField(RuntimeAtgmLauncher.IsLauncher(cannon)
+                        ? "Saved shell profile unavailable in this era; firing disabled. Selection is retained."
+                        : "Saved shell profile unavailable in this era; native ammunition used. Selection is retained.",2);
+                if(RuntimeAtgmLauncher.IsLauncher(cannon)&&CannonProfile(cannon)==null)
+                    ui.InfoField("ATGM launcher unavailable: firing disabled. Select an allowed launcher ATGM profile and check native technology availability.",2);
                 if (Selected(cannon))
                 {
                     var dart = Calculate(cannon);
@@ -150,9 +184,9 @@ internal static class RuntimeShellSelection
                     var selectedProfile=CannonProfile(cannon)!;
                     if(ShellBalance.IsAtgm(selectedProfile.Behavior))
                         ui.InfoField($"ATGM: cruise {selectedProfile.Atgm!.FlightSpeed:0} m/s | {selectedProfile.Atgm.Acceleration:0} m/s² | {selectedProfile.Atgm.MaxTurnRate:0} deg/s | guidance {selectedProfile.Atgm.GuidanceMode} | flight hook {(RuntimeAtgm.Ready && RuntimeAtgm.Enabled ? "ready" : "unavailable")}",2);
-                    ui.InfoField(selectedProfile.Behavior=="he" ? $"{dart.Velocity:0} m/s | native HE power {ShellBalance.BlastPower(selectedProfile,blueprint.Caliber):0.0}" : selectedProfile.Behavior is "heat" or "hesh" or "atgm" or "atgm_gun" ? $"{dart.Velocity:0} m/s | {ShellChemicalBudget.Resolve(selectedProfile,blueprint.Caliber,RuntimeShellEra.Era(cannon.Vehicle)):0} mm chemical proxy penetration" : $"{dart.Velocity:0} m/s | {pen:0} mm base RHA penetration", 2);
+                    ui.InfoField(selectedProfile.Behavior=="he" ? $"{dart.Velocity:0} m/s | native HE power {ShellBalance.BlastPower(selectedProfile,blueprint.Caliber):0.0}" : selectedProfile.Behavior is "heat" or "hesh" or "atgm" or "atgm_gun" ? $"{dart.Velocity:0} m/s | {RuntimeShellEra.ChemicalBudget(selectedProfile,blueprint.Caliber,cannon.Vehicle):0} mm chemical proxy penetration" : $"{dart.Velocity:0} m/s | {pen:0} mm base RHA penetration", 2);
                     if(selectedProfile.Behavior is "heat" or "hesh" or "atgm" or "atgm_gun")
-                        ui.InfoField(ShellChemicalBudget.Description(selectedProfile,RuntimeShellEra.Era(cannon.Vehicle)),2);
+                        ui.InfoField(RuntimeShellEra.ChemicalDescription(selectedProfile,cannon.Vehicle),2);
                     ui.InfoField(CannonProfile(cannon)!.Behavior == "aphe"
                         ? "APHE: reduced penetration | amplified native AP spall"
                         : CannonProfile(cannon)!.Behavior == "apfsds" ? "APFSDS: narrow cone | spall increases as remaining penetration falls"
@@ -181,7 +215,7 @@ internal static class RuntimeShellSelection
             __instance.muzzleVelocity.Value = dart.Velocity;
             __instance.projectileMass.Value = dart.Mass;
             var profile=CannonProfile(cannon)!;
-            __instance.penetration.Value = profile.Behavior=="he" ? 0 : profile.Behavior is "heat" or "hesh" or "atgm" or "atgm_gun" ? (float)ShellChemicalBudget.Resolve(profile,cannon.Blueprint.Caliber,RuntimeShellEra.Era(cannon.Vehicle)) : PenetrationUtils.ComputePenetration(dart.Diameter * 1000,
+            __instance.penetration.Value = profile.Behavior=="he" ? 0 : profile.Behavior is "heat" or "hesh" or "atgm" or "atgm_gun" ? (float)RuntimeShellEra.ChemicalBudget(profile,cannon.Blueprint.Caliber,cannon.Vehicle) : PenetrationUtils.ComputePenetration(dart.Diameter * 1000,
                 dart.Mass, dart.Velocity, dart.PenetratorConstant);
             __instance.dispersion.Value = ShellProperties.CalculateDispersion(cannon.Blueprint.Caliber,
                 CannonProperties.DispersionMeasureDistance, dart.Velocity, cannon.Blueprint.BoreLength);
@@ -203,6 +237,8 @@ internal static class RuntimeShellSelection
             if(!NativeTypes.Restore(__instance.Pointer,incoming,ref projectileTypeID,source?.Pointer??IntPtr.Zero)&&NativeTypes.Known(__instance.Pointer,incoming))
             {LaunchAccepted=false;RuntimeShellEra.WarnCached(source?.Pointer??IntPtr.Zero);return false;}
             var cannon = source?.TryCast<CannonBehaviour>()?.mount?.TryCast<Cannon>();
+            if(RuntimeAtgmLauncher.IsLauncher(cannon)&&!RuntimeAtgmLauncher.CanLaunch(cannon!))
+            {LaunchAccepted=false;return false;}
             if (cannon == null || !Selected(cannon)) return true;
             var dart = Calculate(cannon);
             var register = IProjectileTypeRegister.Instance;
@@ -210,8 +246,9 @@ internal static class RuntimeShellSelection
             var profile = CannonProfile(cannon)!;
             // Distinct prototypes retain their firing-era budget even after the design changes era.
             var firingEra=RuntimeShellEra.Era(cannon.Vehicle);
+            var chemicalBudget=RuntimeShellEra.ChemicalBudget(profile,cannon.Blueprint.Caliber,cannon.Vehicle);
             var chemicalEra=profile.Behavior is "heat" or "hesh" or "atgm" or "atgm_gun" ? firingEra : null;
-            var key = (register.Pointer, profile.Id, dart.Diameter, dart.Length, dart.Mass, dart.PenetratorConstant, dart.DamageMultiplier,projectileTypeID.Value.ToString(),chemicalEra);
+            var key = (register.Pointer, profile.Id, dart.Diameter, dart.Length, dart.Mass, dart.PenetratorConstant, dart.DamageMultiplier,projectileTypeID.Value.ToString(),chemicalEra,chemicalBudget);
             if (!Types.TryGetValue(key, out var registered))
             {
                 var guid = new Il2CppSystem.Guid(System.Guid.NewGuid().ToString());
@@ -230,7 +267,6 @@ internal static class RuntimeShellSelection
             }
             DamageFactors[registered.Type.Guid.ToString()] = profile.Behavior is "apfsds" or "aphe" or "heat" or "hesh" or "atgm" or "atgm_gun" ? 1f : dart.DamageMultiplier;
             registered.Users.Add(__instance.Pointer);
-            var chemicalBudget=ShellChemicalBudget.Resolve(profile,cannon.Blueprint.Caliber,firingEra);
             ImpactProfiles[registered.Type.Guid.ToString()] = (profile.Id, cannon.Blueprint.Caliber * .001f,firingEra,chemicalBudget);
             if(diagnostics.Value && profile.Behavior is "heat" or "hesh" or "atgm" or "atgm_gun")
                 Plugin.ModLog.LogInfo($"[Chemical budget] launch profile={profile.Id} firingEra={firingEra} effective={chemicalBudget:0.0}mm stockPeriod={ShellChemicalBudget.IsStock(profile)}");
@@ -252,7 +288,12 @@ internal static class RuntimeShellSelection
             if (diagnostics.Value) Plugin.ModLog.LogInfo($"[APFSDS Beta] FIRE cannon={cannon.Blueprint.Caliber}mm " +
                 $"projectileType={projectileTypeID.Value} muzzle={dart.Velocity:0.0}m/s inherited velocity preserved");
         }
-        catch (Exception ex) { Plugin.ModLog.LogError($"[APFSDS Beta] Shot kept vanilla: {ex}"); }
+        catch (Exception ex)
+        {
+            if(RuntimeAtgmLauncher.IsLauncher(source?.TryCast<CannonBehaviour>()?.mount?.TryCast<Cannon>()))
+            {LaunchAccepted=false;Plugin.ModLog.LogError("[ATGM launcher] Shot withheld: "+ex.Message);return false;}
+            Plugin.ModLog.LogError($"[APFSDS Beta] Shot kept vanilla: {ex}");
+        }
         return true;
     }
 

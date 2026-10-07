@@ -1,0 +1,76 @@
+{
+  "v": "0.0",
+  "guid": "c04c9eec-84d9-543b-8449-4c065f5a0b52",
+  "name": "atgmAmmoBox",
+  "tags": [
+    "ammoRack",
+    "cannon"
+  ],
+  "components": [
+    {
+      "fileID": "ammoRack",
+      "type": "ammoRack",
+      "info": {
+        "v": "0.0",
+        "spacing": [
+          0.01,
+          0.01,
+          0.01
+        ],
+        "minPadding": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "maxPadding": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "fileID": "ammoRackModel",
+      "type": "ammoRackModel",
+      "info": {
+        "v": "0.0",
+        "projectileMeshGuid": "9ce6cc8dca0dfd94b8889fb9020d5869",
+        "propellantMeshGuid": "2c17b44eeed8a964c94c34d1db68c81d",
+        "materialGuid": "1951c2ec80512764c987bdbd8f791be3",
+        "propellantLength": 700,
+        "projectileLength": 300,
+        "lowDefinitionMeshGuid": "aa78f777eb11d8d4dae098e420886d89",
+        "lowDefinitionMaterialGuid": "f49261666f290a34098c2739f91eb81b"
+      }
+    }
+  ],
+  "transform": {
+    "mirroring": true,
+    "duplication": true,
+    "pickup": true,
+    "snapToCentre": true,
+    "autoRotate": false,
+    "airPlacement": true,
+    "translation": true,
+    "rotation": true,
+    "scaling": true,
+    "dynamic": false,
+    "placementMode": "upright",
+    "scale": [
+      0.5,
+      0.5,
+      1.0
+    ],
+    "maxScale": [
+      2.0,
+      2.0,
+      2.0
+    ],
+    "minScale": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "objects": []
+  }
+}

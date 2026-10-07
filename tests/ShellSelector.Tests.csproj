@@ -10,4 +10,11 @@
 <ItemGroup><Compile Include="..\ShellNativeTypeCache.cs" Link="ShellNativeTypeCache.cs" /></ItemGroup>
 <ItemGroup><Compile Include="..\ShellChemicalBudget.cs" Link="ShellChemicalBudget.cs" /></ItemGroup>
 <ItemGroup><Compile Include="..\ShellDatePolicy.cs" Link="ShellDatePolicy.cs" /></ItemGroup>
+<ItemGroup><Compile Include="..\ShellNativeDate.cs" Link="ShellNativeDate.cs" /></ItemGroup>
+<ItemGroup><EmbeddedResource Include="..\examples\Technology\ShellSelector-ap.json" LogicalName="NativeShellTech.ap.json" /><EmbeddedResource Include="..\examples\Technology\ShellSelector-apfsds.json" LogicalName="NativeShellTech.apfsds.json" /><EmbeddedResource Include="..\examples\Technology\ShellSelector-aphe.json" LogicalName="NativeShellTech.aphe.json" /><EmbeddedResource Include="..\examples\Technology\ShellSelector-atgm.json" LogicalName="NativeShellTech.atgm.json" /><EmbeddedResource Include="..\examples\Technology\ShellSelector-atgm_gun.json" LogicalName="NativeShellTech.atgm_gun.json" /><EmbeddedResource Include="..\examples\Technology\ShellSelector-he.json" LogicalName="NativeShellTech.he.json" /><EmbeddedResource Include="..\examples\Technology\ShellSelector-heat-modern.json" LogicalName="NativeShellTech.heat-modern.json" /><EmbeddedResource Include="..\examples\Technology\ShellSelector-heat.json" LogicalName="NativeShellTech.heat.json" /><EmbeddedResource Include="..\examples\Technology\ShellSelector-hesh.json" LogicalName="NativeShellTech.hesh.json" /></ItemGroup>
+<ItemGroup><Compile Include="..\AtgmLauncherModel.cs" Link="AtgmLauncherModel.cs" /></ItemGroup>
+<ItemGroup><Compile Include="..\AtgmAmmoBoxRules.cs" Link="AtgmAmmoBoxRules.cs" /></ItemGroup>
+<ItemGroup><Compile Include="..\AtgmOpticalScope.cs" Link="AtgmOpticalScope.cs" /></ItemGroup>
+<ItemGroup><Compile Include="..\AtgmInitialRoundLedger.cs" Link="AtgmInitialRoundLedger.cs" /></ItemGroup>
+<ItemGroup><Compile Include="..\PluginConfigMigration.cs" Link="PluginConfigMigration.cs" /></ItemGroup>
 </Project>

@@ -1,7 +1,10 @@
 bin/
 obj/
-backups/
+tests/bin/
+tests/obj/
 work/
 outputs/
 *.dll
 *.pdb
+*.zip
+.research/

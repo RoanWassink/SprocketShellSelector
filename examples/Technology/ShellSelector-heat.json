@@ -1,0 +1,10 @@
+{
+  "v": "0.0",
+  "id": "",
+  "type": "shellSelector_heat",
+  "date": "1939.09.02",
+  "properties": {
+    "enabled": true,
+    "penetrationPerCalibre": 1.2
+  }
+}

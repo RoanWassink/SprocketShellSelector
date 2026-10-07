@@ -69,7 +69,7 @@ internal static class ShellProfiles
             if(item.TryGetProperty("minimumEra",out var era))
             {
                 var minimum=era.ValueKind==JsonValueKind.String?era.GetString():null;
-                if(ShellEraPolicy.Rank(minimum)<0)throw new FormatException($"Profile '{id}': invalid minimumEra.");
+                if(string.IsNullOrWhiteSpace(minimum)||minimum.Length>80||minimum.Any(char.IsControl))throw new FormatException($"Profile '{id}': invalid minimumEra.");
                 profile=profile with {MinimumEra=minimum};
             }
             result.Add(profile);

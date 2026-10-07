@@ -5,19 +5,24 @@ using HarmonyLib;
 using Il2CppInterop.Runtime;
 using UnityEngine.Events;
 namespace SprocketShellSelector;
-[BepInPlugin("nl.roan.sprocket.shellselector", "Sprocket Shell Selector", "0.12.4")]
-[BepInDependency("nl.roan.sprocket.materialselector", BepInDependency.DependencyFlags.SoftDependency)]
+[BepInPlugin("sprocket.shellselector", "Sprocket Shell Selector", "0.12.5")]
+[BepInDependency("sprocket.materialselector", BepInDependency.DependencyFlags.SoftDependency)]
 public sealed class Plugin : BasePlugin
 {
     internal static ManualLogSource ModLog = null!;
     public override void Load()
     {
         ModLog = Log;
-        var harmony = new Harmony("nl.roan.sprocket.shellselector");
+        var harmony = new Harmony(PluginConfigMigration.PluginId);
         try
         {
-            if (Harmony.HasAnyPatches("nl.roan.sprocket.materialselector.apfsdsbeta"))
-                throw new InvalidOperationException("Combined Material Selector shell hooks detected. Close the game and restore Material Selector stable v0.4.0 before using this plugin.");
+            if(PluginConfigMigration.EnsureCurrent(Paths.ConfigPath))
+            {
+                Config.Reload();
+                Log.LogInfo("[Configuration] Previous plugin settings copied to sprocket.shellselector.cfg; original retained for rollback.");
+            }
+            if (Harmony.HasAnyPatches("sprocket.materialselector.apfsdsbeta"))
+                throw new InvalidOperationException("Combined Material Selector shell hooks detected. Close the game and use a compatible Material Selector without bundled shell hooks.");
             RuntimeShellSelection.Configure(Config);
             RuntimeSpall.Configure();
             harmony.PatchAll(typeof(RuntimeShellSelection));
@@ -29,31 +34,50 @@ public sealed class Plugin : BasePlugin
             Log.LogError($"Shell selector disabled: {ex}");
             return;
         }
-        Log.LogInfo("Sprocket Shell Selector v0.12.4 loaded; component VUID armour responses and date-driven eras enabled.");
-        var armourHarmony=new Harmony("nl.roan.sprocket.shellselector.armourresponses");
+        Log.LogInfo("Sprocket Shell Selector v0.12.5 loaded.");
+        var armourHarmony=new Harmony("sprocket.shellselector.armourresponses");
         try{if(RuntimeArmourResponses.Configure())armourHarmony.PatchAll(typeof(RuntimeArmourResponses));}
         catch(Exception ex){armourHarmony.UnpatchSelf();Log.LogWarning("[Armour response] Optional adapter disabled: "+ex.Message);}
-        var atgmHarmony=new Harmony("nl.roan.sprocket.shellselector.atgm");
+        var atgmHarmony=new Harmony("sprocket.shellselector.atgm");
         try
         {
             RuntimeAtgm.Configure(Config);
-            if(RuntimeAtgm.Enabled){atgmHarmony.PatchAll(typeof(RuntimeAtgm));RuntimeAtgm.Ready=true;Log.LogInfo("[ATGM] Experimental native flight/player-ray/scope hooks loaded.");}
+            if(RuntimeAtgm.Enabled){atgmHarmony.PatchAll(typeof(RuntimeAtgm));RuntimeAtgm.Ready=true;Log.LogInfo("[ATGM] Powered missile flight and guidance loaded.");}
         }
         catch(Exception ex){atgmHarmony.UnpatchSelf();RuntimeAtgm.Ready=false;Log.LogError("[ATGM] Optional flight guidance unavailable; other shell hooks remain active: "+ex);}
-        var audioHarmony=new Harmony("nl.roan.sprocket.shellselector.atgmaudio");
+        var launcherHarmony=new Harmony("sprocket.shellselector.atgmlauncher");
+        try{launcherHarmony.PatchAll(typeof(RuntimeAtgmLauncher));RuntimeAtgmLauncher.Ready=true;Log.LogInfo("[ATGM launcher] Native cannon adapter, ATGM-only gate and optional model/icon hooks loaded.");}
+        catch(Exception ex){launcherHarmony.UnpatchSelf();RuntimeAtgmLauncher.Ready=false;Log.LogWarning("[ATGM launcher] Adapter unavailable; dedicated launcher shots withheld: "+ex.Message);}
+        var opticsHarmony=new Harmony("sprocket.shellselector.atgmlauncher.optics");
+        var optics=Config.Bind("ATGM Launcher Tests","OpticalSightDirection",false,"Initialize the dedicated launcher optical sight direction after native activation. Restart to change; retains native mouse control and physical ejection.");
+        try{if(optics.Value){opticsHarmony.PatchAll(typeof(RuntimeAtgmLauncherOptics));Log.LogInfo("[ATGM optics] Dedicated launcher optical sight initialization enabled.");}else Log.LogInfo("[ATGM optics] Disabled; native scope initialization retained.");}
+        catch(Exception ex){opticsHarmony.UnpatchSelf();Log.LogWarning("[ATGM optics] Optional initialization unavailable: "+ex.Message);}
+        var initialHarmony=new Harmony("sprocket.shellselector.atgmlauncher.initialround");
+        var initial=Config.Bind("ATGM Launcher Tests","InitialReadyMissile",true,"One finite native initial chamber round per dedicated launcher per new combat instance. No reserve refill; gunner/readiness retained. Restart to change.");
+        try{if(initial.Value){initialHarmony.PatchAll(typeof(RuntimeAtgmInitialRound));RuntimeAtgmInitialRound.Ready=true;Log.LogInfo("[ATGM initial] One finite native initial missile enabled.");}}
+        catch(Exception ex){initialHarmony.UnpatchSelf();RuntimeAtgmInitialRound.Ready=false;Log.LogWarning("[ATGM initial] Optional starting missile unavailable: "+ex.Message);}
+        var boxHarmony=new Harmony("sprocket.shellselector.atgmammobox");
+        var automaticBox=Config.Bind("ATGM Launcher Tests","AutomaticAmmoBox",false,"Enable automatic loading from the dedicated finite ATGM ammunition box. Restart to change. Requires a matching nearby launcher and assigned gunner; ordinary ammunition racks are not automatic reserves.");
+        try{if(automaticBox.Value){boxHarmony.PatchAll(typeof(RuntimeAtgmAmmoBox));RuntimeAtgmAmmoBox.Ready=true;Log.LogInfo("[ATGM ammo box] Finite automatic feed enabled.");}else Log.LogInfo("[ATGM ammo box] Native rack and container visuals enabled; automatic feed disabled.");}
+        catch(Exception ex){boxHarmony.UnpatchSelf();RuntimeAtgmAmmoBox.Ready=false;Log.LogWarning("[ATGM ammo box] Automatic feed unavailable: "+ex.Message);}
+        var boxVisualHarmony=new Harmony("sprocket.shellselector.atgmammobox.visuals");
+        try{boxVisualHarmony.PatchAll(typeof(AtgmAmmoBoxVisuals));}
+        catch(Exception ex){boxVisualHarmony.UnpatchSelf();Log.LogWarning("[ATGM ammo box] Optional container visuals unavailable: "+ex.Message);}
+        Log.LogInfo("[ATGM launcher] Dedicated launcher uses native sight association and physical ejection.");
+        var audioHarmony=new Harmony("sprocket.shellselector.atgmaudio");
         try
         {
             RuntimeLaunchAudio.Configure(Config);
             if(RuntimeLaunchAudio.Enabled){RuntimeLaunchAudio.PreloadClips();audioHarmony.PatchAll(typeof(RuntimeLaunchAudio));Log.LogInfo("[ATGM audio] Supplied TOW launch sound enabled for launcher and gun-launched missiles.");}
         }
         catch(Exception ex){audioHarmony.UnpatchSelf();Log.LogWarning("[ATGM audio] Optional launch audio unavailable; native sounds retained: "+ex.Message);}
-        var aiHarmony=new Harmony("nl.roan.sprocket.shellselector.atgmai");
+        var aiHarmony=new Harmony("sprocket.shellselector.atgmai");
         try{aiHarmony.PatchAll(typeof(RuntimeAtgmAi));Log.LogInfo("[ATGM AI] Scoped native aiming hooks loaded.");}
         catch(Exception ex){aiHarmony.UnpatchSelf();Log.LogWarning("[ATGM AI] Optional AI guidance unavailable: "+ex.Message);}
-        var trailHarmony=new Harmony("nl.roan.sprocket.shellselector.atgmtrail");
-        try{RuntimeAtgmTrail.Configure(Config);trailHarmony.PatchAll(typeof(RuntimeAtgmTrail));Log.LogInfo("[ATGM trail] Experimental motor flame/smoke hooks loaded.");}
+        var trailHarmony=new Harmony("sprocket.shellselector.atgmtrail");
+        try{RuntimeAtgmTrail.Configure(Config);trailHarmony.PatchAll(typeof(RuntimeAtgmTrail));Log.LogInfo("[ATGM trail] Motor flame and smoke hooks loaded.");}
         catch(Exception ex){trailHarmony.UnpatchSelf();Log.LogWarning("[ATGM trail] Optional visuals unavailable: "+ex.Message);}
-        var simulatorHarmony = new Harmony("nl.roan.sprocket.shellselector.simulator");
+        var simulatorHarmony = new Harmony("sprocket.shellselector.simulator");
         try
         {
             RuntimeArmourSimulator.Configure();
@@ -66,8 +90,8 @@ public sealed class Plugin : BasePlugin
             simulatorHarmony.UnpatchSelf();
             Log.LogError($"[Armour Simulator] Disabled; shell and spall/APHE patches remain active: {ex}");
         }
-        var effectsHarmony=new Harmony("nl.roan.sprocket.shellselector.effects");
-        var scrollHarmony=new Harmony("nl.roan.sprocket.shellselector.simulatorscroll");
+        var effectsHarmony=new Harmony("sprocket.shellselector.effects");
+        var scrollHarmony=new Harmony("sprocket.shellselector.simulatorscroll");
         try{scrollHarmony.PatchAll(typeof(RuntimeSimulatorScroll));Log.LogInfo("[Simulator scroll] Native shell list scrollbar hook loaded.");}
         catch(Exception ex){scrollHarmony.UnpatchSelf();Log.LogError($"[Simulator scroll] Optional scrollbar disabled: {ex}");}
         try

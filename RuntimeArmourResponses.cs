@@ -166,8 +166,7 @@ internal static class RuntimeArmourResponses
         if(plate==null){return;}
         var component=plate.Component;var material=component.armourTechID;
         var tech=component.Vehicle?.Tech;var design=component.Vehicle?.DesignInfo;
-        if(tech==null||design==null||TechDate.Compare(tech.Date,TechDate.Parse("1945.09.03"))<0||
-            !tech.TryGetTech(material,out _)||!string.Equals(RuntimeShellEra.Era(component.Vehicle),"coldwar",StringComparison.OrdinalIgnoreCase)){return;}
+        if(tech==null||design==null||!RuntimeShellEra.HasNativeContext(component.Vehicle)||!tech.TryGetTech(material,out var armourTech)||armourTech==null)return;
         var fragment=sim.fragments[scope.Index];var direction=fragment.direction.normalized;
         var normal=scope.Structure.GetIntersectionNormal(ref first).normalized;
         var cosine=Mathf.Abs(Vector3.Dot(direction,normal));
