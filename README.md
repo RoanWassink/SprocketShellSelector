@@ -1,5 +1,7 @@
 # Sprocket Shell Selector
 
+<!-- sp-compat {"hamish.sprocket": ">=0.2.55.5", "bepinex.bepinex": "6.0.0-be.788"} -->
+
 Custom ammunition and guided missiles for Sprocket: **APFSDS long/short rod, APHE, HE, HEAT, HESH, SACLOS and MCLOS ATGM**, plus a dedicated launcher and finite ammunition box.
 
 **[Download v0.13.2](https://github.com/RoanWassink/SprocketShellSelector/releases/tag/v0.13.2)**. Download the installation ZIP from the release; GitHub's **Code > Download ZIP** contains source code.
