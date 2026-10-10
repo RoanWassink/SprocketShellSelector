@@ -1,6 +1,6 @@
 # Making your own shell profiles
 
-This guide describes **v0.12.5**. Profiles do not change the cannon's propellant setting or visible ammunition model.
+This guide describes **v0.13.0**. Profiles do not change the cannon's propellant setting or visible ammunition model.
 
 ## Add a shell
 

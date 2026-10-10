@@ -1,3 +1,4 @@
+using Il2CppInterop.Runtime;
 using BepInEx.Configuration;
 using BepInEx;
 using HarmonyLib;
@@ -24,9 +25,9 @@ internal static class RuntimeShellSelection
         internal readonly string Guid=Type.Guid.ToString();
     }
     private static readonly Dictionary<IntPtr, Selection> Selections = new();
-    private static readonly Dictionary<(IntPtr, string, float, float, float, ushort, float,string,string?,double), RegisteredDart> Types = new();
+    private static readonly Dictionary<(IntPtr, string, float, float, float, ushort, float,string,string?,double,int), RegisteredDart> Types = new();
     private static readonly Dictionary<string, float> DamageFactors = new();
-    private static readonly Dictionary<string, (string Id, float GunDiameter,string? FiringEra,double ChemicalBudget)> ImpactProfiles = new();
+    private static readonly Dictionary<string, (string Id, float GunDiameter,string? FiringEra,double ChemicalBudget,ShellProfile Profile)> ImpactProfiles = new();
     private static readonly ShellNativeTypeCache<ProjectileTypeID> NativeTypes=new();
     [ThreadStatic] internal static bool LaunchAccepted;
     [HarmonyPrefix,HarmonyPatch(typeof(ProjectileRegister),nameof(ProjectileRegister.Release))]
@@ -47,6 +48,7 @@ internal static class RuntimeShellSelection
     private static ConfigEntry<bool> enabled = null!, open = null!, diagnostics = null!;
     private static readonly Il2CppSystem.Collections.Generic.List<string> Labels = new();
     private static IReadOnlyList<ShellProfile> profiles = Array.Empty<ShellProfile>();
+    private static int catalogueRevision;
 
     internal static void Configure(ConfigFile config)
     {
@@ -78,6 +80,24 @@ internal static class RuntimeShellSelection
         Plugin.ModLog.LogInfo($"[Shell Profiles] Loaded {profiles.Count} profile(s) from {path}. Restart after editing. Legacy numeric CFG values are only used on first migration.");
     }
 
+    internal static void Refresh(Cannon owner)
+    {
+        var path=System.IO.Path.Combine(Paths.ConfigPath,"sprocket.shellselector.shells.json");
+        var updated=ShellProfiles.Parse(File.ReadAllText(path));
+        // A new registration generation avoids reusing HE/ATGM definitions with old payloads.
+        // Keep old registrations and immutable impact snapshots until their native register clears.
+        catalogueRevision=checked(catalogueRevision+1);
+        profiles=updated;Labels.Clear();Labels.Add("Vanilla ammunition");foreach(var p in profiles)Labels.Add(p.Label);
+        var items=owner.Vehicle.ObjectReader.Items;
+        int Count<T>(Il2CppSystem.Collections.Generic.IReadOnlyList<T> list)=>list.Cast<Il2CppSystem.Collections.Generic.IReadOnlyCollection<T>>().Count;
+        for(int i=0;i<Count(items);i++)
+        {
+            var parts=items[i].Components;
+            for(int j=0;j<Count(parts);j++)if(parts[j].TryCast<Cannon>() is {} cannon)cannon.RequestRebuild();
+        }
+        RuntimeArmourSimulator.Refresh();
+        Plugin.ModLog.LogInfo($"[Shell editor] Refreshed {profiles.Count} shells; registration generation {catalogueRevision}.");
+    }
     internal static IReadOnlyList<ShellProfile> Profiles => profiles;
     internal static bool Enabled => enabled.Value;
     private static ShellProfile? Profile(CannonBlueprint blueprint) => enabled.Value &&
@@ -126,7 +146,7 @@ internal static class RuntimeShellSelection
 
     internal static ShellProfile? ProjectileProfile(ProjectileInstance projectile) =>
         ImpactProfiles.TryGetValue(projectile.Definition.Guid.ToString(),out var impact)
-            ? profiles.FirstOrDefault(p=>p.Id==impact.Id) : null;
+            ? impact.Profile : null;
 
     private static void Guard(string action, Action work)
     {
@@ -168,6 +188,12 @@ internal static class RuntimeShellSelection
                         cannon.RequestRebuild();
                         __instance.RequestRedraw();
                     })), "Applies to cannons sharing this design. APFSDS overrides loaded AP/APHE shots; rack sizes and loading remain vanilla in this beta.");
+                RuntimeDamageFeed.DrawOptions(ui,()=>__instance.RequestRedraw());
+                var editorTip = new UITooltip { Header = "Modular shells", Body = "Edit names and modules for the shared catalogue. Supported designs apply on Save; pending combinations save as drafts only." };
+                ui.Button("Edit shells", DelegateSupport.ConvertDelegate<UnityEngine.Events.UnityAction>((Action)(() => RuntimeShellEditor.Open(() => { Refresh(cannon); __instance.RequestRedraw(); }))), ref editorTip);
+                var importTip = new UITooltip { Header = "Import shell JSON", Body = "Read modular or legacy JSON from BepInEx/config/sprocket.shellselector.modules.import.json. Existing IDs are retained; files change only on Save." };
+                ui.Button("Import shell JSON", DelegateSupport.ConvertDelegate<UnityEngine.Events.UnityAction>((Action)(() => RuntimeShellEditor.Import(() => { Refresh(cannon); __instance.RequestRedraw(); }))), ref importTip);
+                if(RuntimeShellEditor.LastSaveMessage is {} saveMessage)ui.InfoField(saveMessage,2);
                 if(Profile(blueprint) is {} stored && !RuntimeShellEra.Allowed(stored,cannon.Vehicle))
                     ui.InfoField(RuntimeAtgmLauncher.IsLauncher(cannon)
                         ? "Saved shell profile unavailable in this era; firing disabled. Selection is retained."
@@ -182,7 +208,7 @@ internal static class RuntimeShellSelection
                     ui.InfoField($"{blueprint.Caliber} mm cannon | {dart.Diameter * 1000:0.0} mm penetrator", 2);
                     ui.InfoField($"{dart.Length * 1000:0} mm long | {dart.Mass:0.00} kg", 2);
                     var selectedProfile=CannonProfile(cannon)!;
-                    if(ShellBalance.IsAtgm(selectedProfile.Behavior))
+                    if(ShellBalance.FlightEnabled(selectedProfile))
                         ui.InfoField($"ATGM: cruise {selectedProfile.Atgm!.FlightSpeed:0} m/s | {selectedProfile.Atgm.Acceleration:0} m/s² | {selectedProfile.Atgm.MaxTurnRate:0} deg/s | guidance {selectedProfile.Atgm.GuidanceMode} | flight hook {(RuntimeAtgm.Ready && RuntimeAtgm.Enabled ? "ready" : "unavailable")}",2);
                     ui.InfoField(selectedProfile.Behavior=="he" ? $"{dart.Velocity:0} m/s | native HE power {ShellBalance.BlastPower(selectedProfile,blueprint.Caliber):0.0}" : selectedProfile.Behavior is "heat" or "hesh" or "atgm" or "atgm_gun" ? $"{dart.Velocity:0} m/s | {RuntimeShellEra.ChemicalBudget(selectedProfile,blueprint.Caliber,cannon.Vehicle):0} mm chemical proxy penetration" : $"{dart.Velocity:0} m/s | {pen:0} mm base RHA penetration", 2);
                     if(selectedProfile.Behavior is "heat" or "hesh" or "atgm" or "atgm_gun")
@@ -201,7 +227,7 @@ internal static class RuntimeShellSelection
     private static void Aim(Cannon __instance)
     {
         if (Selected(__instance))
-            Guard("Aiming velocity", () => __instance.muzzleVelocity = (float)(RuntimeAtgm.Ready && RuntimeAtgm.Enabled && ShellBalance.IsAtgm(CannonProfile(__instance)?.Behavior) ? CannonProfile(__instance)!.Atgm!.FlightSpeed : Calculate(__instance).Velocity));
+            Guard("Aiming velocity", () => __instance.muzzleVelocity = (float)(RuntimeAtgm.Ready && RuntimeAtgm.Enabled && CannonProfile(__instance) is {} aimingProfile && ShellBalance.Powered(aimingProfile) ? CannonProfile(__instance)!.Atgm!.FlightSpeed : Calculate(__instance).Velocity));
     }
 
     [HarmonyPostfix, HarmonyPatch(typeof(CannonProperties), nameof(CannonProperties.OnRebuilt))]
@@ -248,7 +274,7 @@ internal static class RuntimeShellSelection
             var firingEra=RuntimeShellEra.Era(cannon.Vehicle);
             var chemicalBudget=RuntimeShellEra.ChemicalBudget(profile,cannon.Blueprint.Caliber,cannon.Vehicle);
             var chemicalEra=profile.Behavior is "heat" or "hesh" or "atgm" or "atgm_gun" ? firingEra : null;
-            var key = (register.Pointer, profile.Id, dart.Diameter, dart.Length, dart.Mass, dart.PenetratorConstant, dart.DamageMultiplier,projectileTypeID.Value.ToString(),chemicalEra,chemicalBudget);
+            var key = (register.Pointer, profile.Id, dart.Diameter, dart.Length, dart.Mass, dart.PenetratorConstant, dart.DamageMultiplier,projectileTypeID.Value.ToString(),chemicalEra,chemicalBudget,catalogueRevision);
             if (!Types.TryGetValue(key, out var registered))
             {
                 var guid = new Il2CppSystem.Guid(System.Guid.NewGuid().ToString());
@@ -259,7 +285,7 @@ internal static class RuntimeShellSelection
                 // once, preserving inherited vehicle velocity. Native Launch then
                 // computes impulse/energy from this definition's real mass/velocity.
                 var type = register.Create(profile.Label, guid, dart.Mass, dart.Diameter, dart.Length,
-                    ShellBalance.IsAtgm(profile.Behavior) ? 1f : 10f, (float)(profile.Atgm?.MaximumFlightTime ?? 30), functions.Cast<Il2CppSystem.Collections.Generic.IReadOnlyList<ProjectileFunctionDefinition>>());
+                    ShellBalance.Powered(profile) ? 1f : 10f, (float)(profile.Atgm?.MaximumFlightTime ?? 30), functions.Cast<Il2CppSystem.Collections.Generic.IReadOnlyList<ProjectileFunctionDefinition>>());
                 registered = new(register, type);
                 Types[key] = registered;
                 if (diagnostics.Value) Plugin.ModLog.LogInfo($"[APFSDS Beta] Registered {guid}: " +
@@ -267,7 +293,7 @@ internal static class RuntimeShellSelection
             }
             DamageFactors[registered.Type.Guid.ToString()] = profile.Behavior is "apfsds" or "aphe" or "heat" or "hesh" or "atgm" or "atgm_gun" ? 1f : dart.DamageMultiplier;
             registered.Users.Add(__instance.Pointer);
-            ImpactProfiles[registered.Type.Guid.ToString()] = (profile.Id, cannon.Blueprint.Caliber * .001f,firingEra,chemicalBudget);
+            ImpactProfiles[registered.Type.Guid.ToString()] = (profile.Id, cannon.Blueprint.Caliber * .001f,firingEra,chemicalBudget,profile);
             if(diagnostics.Value && profile.Behavior is "heat" or "hesh" or "atgm" or "atgm_gun")
                 Plugin.ModLog.LogInfo($"[Chemical budget] launch profile={profile.Id} firingEra={firingEra} effective={chemicalBudget:0.0}mm stockPeriod={ShellChemicalBudget.IsStock(profile)}");
             var direction = launchState.Direction;
@@ -326,9 +352,10 @@ internal static class RuntimeShellSelection
         {
             if (DamageFactors.TryGetValue(projectile.Definition.Guid.ToString(), out var factor))
             {
+                RuntimeAtgm.EndModularFlight(projectile);
                 impactDamageFactor = factor;
                 if (ImpactProfiles.TryGetValue(projectile.Definition.Guid.ToString(), out var impactProfile))
-                    RuntimeSpall.Impact = new() { ProfileId = impactProfile.Id, Profile = profiles.FirstOrDefault(p=>p.Id==impactProfile.Id), GunDiameter = impactProfile.GunDiameter, LiveImpact=true,FiringEra=impactProfile.FiringEra,ChemicalBudget=impactProfile.ChemicalBudget };
+                    RuntimeSpall.Impact = new() { ProfileId = impactProfile.Id, Profile = impactProfile.Profile, GunDiameter = impactProfile.GunDiameter, LiveImpact=true,FiringEra=impactProfile.FiringEra,ChemicalBudget=impactProfile.ChemicalBudget };
                 __state = __state with { IsDart = true };
                 if (diagnostics.Value) Plugin.ModLog.LogInfo($"[APFSDS Beta] IMPACT projectile={projectile.ID} speed={projectile.velocity.magnitude:0.0}m/s damageFactor={factor:0.00}");
             }
@@ -339,6 +366,7 @@ internal static class RuntimeShellSelection
     [HarmonyFinalizer, HarmonyPatch(typeof(ArmourPiercingProjectileFunction), nameof(ArmourPiercingProjectileFunction.HitDamageModel))]
     private static void EndImpact(ImpactState __state)
     {
+        PlacedEra.Flush(RuntimeSpall.Impact);
         if (__state.IsDart && diagnostics.Value)
             Plugin.ModLog.LogInfo($"[APFSDS Beta] IMPACT completed; scaled fragment damage calls={scaledDamageCalls}");
         impactDamageFactor = __state.PreviousFactor;
@@ -419,3 +447,8 @@ internal static class RuntimeShellSelection
             Selections[copy.Pointer] = new(copy, selection.ProfileId);
     }
 }
+
+
+
+
+

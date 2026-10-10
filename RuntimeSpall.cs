@@ -18,6 +18,7 @@ internal sealed class ShellImpactContext
     internal bool ExplosionPending;
     internal UnityEngine.Vector3 ExplosionPosition;
     internal readonly List<UnityEngine.Vector3> ArmourExplosions=new();
+    internal readonly List<PlacedEraActivation> PlacedActivations=new();
     internal bool ArmourEffectPlaying;
 }
 [HarmonyPatch]
@@ -28,16 +29,19 @@ internal static class RuntimeSpall
     [ThreadStatic] private static UnityEngine.Vector3? apheAxis;
     [ThreadStatic] private static PenetrationSimulation? layerSimulation;
     [ThreadStatic] private static short layerFragment;
-    private sealed record LayerScope(PenetrationSimulation? Simulation,short Index);
+    [ThreadStatic] private static CompoundStructure? layerStructure;
+    private static int chemicalDiagnosticBudget=80;
+    private sealed record LayerScope(PenetrationSimulation? Simulation,short Index,CompoundStructure? Structure);
     [HarmonyPrefix,HarmonyPatch(typeof(CompoundStructure),nameof(CompoundStructure.SimulateFragment))]
-    private static void BeginLayer(PenetrationSimulation sim,short index,out LayerScope __state)
+    private static void BeginLayer(CompoundStructure __instance,PenetrationSimulation sim,short index,out LayerScope __state)
     {
-        __state=new(layerSimulation,layerFragment);
+        __state=new(layerSimulation,layerFragment,layerStructure);
+        layerStructure=__instance;
         layerSimulation=Impact?.Behavior is "heat" or "hesh" ? sim : null;
         layerFragment=index;
     }
     [HarmonyFinalizer,HarmonyPatch(typeof(CompoundStructure),nameof(CompoundStructure.SimulateFragment))]
-    private static void EndLayer(LayerScope __state){layerSimulation=__state.Simulation;layerFragment=__state.Index;}
+    private static void EndLayer(LayerScope __state){layerSimulation=__state.Simulation;layerFragment=__state.Index;layerStructure=__state.Structure;}
     [HarmonyPostfix,HarmonyPatch(typeof(StructureIntersection),nameof(StructureIntersection.GetNextMaterialBlock))]
     private static void MaterialLayer(MaterialBlock __result,
         Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<StructureIntersection> __0,int __1,
@@ -52,6 +56,21 @@ internal static class RuntimeSpall
         var length=Math.Max(0,(__0[exit].distance-__0[entry].distance)*1000);
         var solid=__result.MaterialIndex>=0;
         if(solid){if(__result.MaterialIndex>=__5.Length)return;length*=Math.Max(0,__5[__result.MaterialIndex].rhaFactor);}
+        if(solid&&layerStructure is {} structure&&chemicalDiagnosticBudget>0)
+        {
+            try
+            {
+            var first=__0[entry];
+            var normal=structure.GetIntersectionNormal(ref first).normalized;
+            var cosine=Math.Clamp(Math.Abs(UnityEngine.Vector3.Dot(fragment.direction.normalized,normal)),0,1);
+            var losMm=Math.Max(0,(__0[exit].distance-__0[entry].distance)*1000);
+            var diagnosticConstant=sim.projectileProfiles[fragment.projectileProfileIndex].penetratorConstant;
+            var inputMm=fragment.GetBasePenetration(diagnosticConstant)*1000;
+            chemicalDiagnosticBudget--;
+            Plugin.ModLog.LogInfo($"[Chemical plate] profile={profile.Id} live={context.LiveImpact} angleFromNormal={Math.Acos(cosine)*180/Math.PI:0.0}deg normalThickness={losMm*cosine:0.0}mm pathThickness={losMm:0.0}mm pathRHA={length:0.0}mm incomingBaseBudget={inputMm:0.0}mm; native armour consumption follows (session trace capped80).");
+            }
+            catch(Exception ex){chemicalDiagnosticBudget=0;Plugin.ModLog.LogWarning("[Chemical plate] Optional trace disabled: "+ex.Message);}
+        }
         if(!context.Layers.TryGetValue(sim.Pointer,out var layers))context.Layers[sim.Pointer]=layers=new();
         var transition=layers.ObserveBlock(solid,length);
         if(transition is not {} gap)return;

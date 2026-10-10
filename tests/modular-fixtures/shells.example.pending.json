@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "purpose": "modular-shell-design-preview",
+  "profiles": [
+    {
+      "id": "example_apfsds_9",
+      "label": "Eigen experimenteel voorbeeld",
+      "originBehavior": "apfsds",
+      "legacyProfile": {
+        "id": "example_apfsds_9",
+        "label": "APFSDS voorbeeld 9",
+        "penetratorDiameterFactor": 0.2199999988079071,
+        "penetratorLengthInCalibres": 6,
+        "penetratorDensity": 17500,
+        "velocityEfficiency": 0.8500000238418579,
+        "velocityMultiplier": 1,
+        "maximumVelocityFactor": 2.200000047683716,
+        "maximumVelocity": 2200,
+        "penetrationQuality": 0.45,
+        "fragmentDamageMultiplier": 0.5,
+        "behavior": "apfsds"
+      },
+      "modifiers": {},
+      "nativeTechnologyIds": [],
+      "modules": {
+        "tail": {
+          "kind": "guided"
+        },
+        "propulsion": {
+          "kind": "rocket"
+        },
+        "body": {
+          "kind": "longRod"
+        },
+        "effect": {
+          "kind": "kinetic"
+        },
+        "carrier": {
+          "kind": "launcher"
+        }
+      }
+    }
+  ],
+  "sourceEnvelope": null
+}

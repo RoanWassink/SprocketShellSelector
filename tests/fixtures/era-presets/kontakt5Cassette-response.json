@@ -1,0 +1,65 @@
+{
+  "responseId": "kontakt5Cassette",
+  "kind": "heavyEra",
+  "compatibleMaterialIds": [
+    "kontakt5Cassette"
+  ],
+  "minimumEra": "coldwar",
+  "historicalDate": "1945.09.03",
+  "status": "candidate",
+  "passiveMaterial": {
+    "density": 4000,
+    "rhaFactor": 0.55,
+    "spallFactor": 0.25,
+    "requestedCostMultiplier": 9.5
+  },
+  "calibration": {
+    "heatRetention": 0.55,
+    "intactRodRetention": 0.9,
+    "disturbedRodRetention": 0.9,
+    "disturbanceContribution": 0
+  },
+  "geometry": {
+    "mode": "declaredCassette",
+    "minNormalThicknessMm": 60,
+    "maxNormalThicknessMm": 80,
+    "angularCurve": [
+      {
+        "angleDegrees": 0,
+        "weight": 1
+      },
+      {
+        "angleDegrees": 60,
+        "weight": 1
+      },
+      {
+        "angleDegrees": 80,
+        "weight": 0
+      }
+    ],
+    "kineticAngularCurve": [
+      {
+        "angleDegrees": 0,
+        "weight": 0
+      },
+      {
+        "angleDegrees": 30,
+        "weight": 1
+      },
+      {
+        "angleDegrees": 60,
+        "weight": 1
+      },
+      {
+        "angleDegrees": 80,
+        "weight": 0
+      }
+    ],
+    "measuredGapCurve": [],
+    "minMeasuredGapMm": 0,
+    "maxMeasuredGapMm": 0
+  },
+  "era": {
+    "cellPitchM": 0.25
+  }
+}

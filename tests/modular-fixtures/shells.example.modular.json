@@ -1,0 +1,361 @@
+{
+  "schemaVersion": 1,
+  "purpose": "modular-shell-design-preview",
+  "profiles": [
+    {
+      "id": "example_ap_1",
+      "label": "AP voorbeeld 1",
+      "originBehavior": "ap",
+      "legacyProfile": {
+        "id": "example_ap_1",
+        "label": "AP voorbeeld 1",
+        "behavior": "ap",
+        "penetratorDiameterFactor": 0.9,
+        "penetratorLengthInCalibres": 2,
+        "penetratorDensity": 7800,
+        "velocityEfficiency": 0.1,
+        "velocityMultiplier": 1,
+        "maximumVelocityFactor": 1,
+        "maximumVelocity": 2200,
+        "penetrationQuality": 0.65,
+        "fragmentDamageMultiplier": 1
+      },
+      "modifiers": {},
+      "nativeTechnologyIds": [],
+      "modules": {
+        "tail": {
+          "kind": "spin"
+        },
+        "propulsion": {
+          "kind": "ballistic"
+        },
+        "body": {
+          "kind": "fullBore"
+        },
+        "effect": {
+          "kind": "kinetic"
+        },
+        "carrier": {
+          "kind": "fullBore"
+        }
+      }
+    },
+    {
+      "id": "example_aphe_2",
+      "label": "APHE voorbeeld 2",
+      "originBehavior": "aphe",
+      "legacyProfile": {
+        "id": "example_aphe_2",
+        "label": "APHE voorbeeld 2",
+        "behavior": "aphe",
+        "penetratorDiameterFactor": 0.9,
+        "penetratorLengthInCalibres": 2,
+        "penetratorDensity": 7800,
+        "velocityEfficiency": 0.1,
+        "velocityMultiplier": 1,
+        "maximumVelocityFactor": 1,
+        "maximumVelocity": 2200,
+        "penetrationQuality": 0.65,
+        "fragmentDamageMultiplier": 1
+      },
+      "modifiers": {},
+      "nativeTechnologyIds": [],
+      "modules": {
+        "tail": {
+          "kind": "spin"
+        },
+        "propulsion": {
+          "kind": "ballistic"
+        },
+        "body": {
+          "kind": "fullBore"
+        },
+        "effect": {
+          "kind": "spall"
+        },
+        "carrier": {
+          "kind": "fullBore"
+        }
+      }
+    },
+    {
+      "id": "example_he_3",
+      "label": "HE voorbeeld 3",
+      "originBehavior": "he",
+      "legacyProfile": {
+        "id": "example_he_3",
+        "label": "HE voorbeeld 3",
+        "penetratorDiameterFactor": 0.9,
+        "penetratorLengthInCalibres": 2,
+        "penetratorDensity": 1800,
+        "velocityEfficiency": 0.1,
+        "velocityMultiplier": 1,
+        "maximumVelocityFactor": 1,
+        "maximumVelocity": 600,
+        "penetrationQuality": 0.45,
+        "fragmentDamageMultiplier": 1,
+        "behavior": "he",
+        "explosionScale": 1.5,
+        "nativeExplosivePower": 40
+      },
+      "modifiers": {},
+      "nativeTechnologyIds": [],
+      "modules": {
+        "tail": {
+          "kind": "spin"
+        },
+        "propulsion": {
+          "kind": "ballistic"
+        },
+        "body": {
+          "kind": "fullBore"
+        },
+        "effect": {
+          "kind": "blast"
+        },
+        "carrier": {
+          "kind": "fullBore"
+        }
+      }
+    },
+    {
+      "id": "example_heat_4",
+      "label": "HEAT voorbeeld 4",
+      "originBehavior": "heat",
+      "legacyProfile": {
+        "id": "example_heat_4",
+        "label": "HEAT voorbeeld 4",
+        "penetratorDiameterFactor": 0.9,
+        "penetratorLengthInCalibres": 2,
+        "penetratorDensity": 1800,
+        "velocityEfficiency": 0.1,
+        "velocityMultiplier": 1,
+        "maximumVelocityFactor": 1,
+        "maximumVelocity": 600,
+        "penetrationQuality": 0.45,
+        "fragmentDamageMultiplier": 1,
+        "behavior": "heat",
+        "explosionScale": 0.7,
+        "chemicalPenetrationMm": 400,
+        "spallMultiplier": 1.5,
+        "coneHalfAngleDegrees": 8,
+        "secondPlatePenetrationFactor": 0.15
+      },
+      "modifiers": {},
+      "nativeTechnologyIds": [],
+      "modules": {
+        "tail": {
+          "kind": "fins"
+        },
+        "propulsion": {
+          "kind": "ballistic"
+        },
+        "body": {
+          "kind": "shapedCharge"
+        },
+        "effect": {
+          "kind": "heat"
+        },
+        "carrier": {
+          "kind": "fullBore"
+        }
+      }
+    },
+    {
+      "id": "example_hesh_5",
+      "label": "HESH voorbeeld 5",
+      "originBehavior": "hesh",
+      "legacyProfile": {
+        "id": "example_hesh_5",
+        "label": "HESH voorbeeld 5",
+        "penetratorDiameterFactor": 0.9,
+        "penetratorLengthInCalibres": 2,
+        "penetratorDensity": 1800,
+        "velocityEfficiency": 0.1,
+        "velocityMultiplier": 1,
+        "maximumVelocityFactor": 1,
+        "maximumVelocity": 600,
+        "penetrationQuality": 0.45,
+        "fragmentDamageMultiplier": 1,
+        "behavior": "hesh",
+        "explosionScale": 0.65,
+        "chemicalPenetrationMm": 300,
+        "spallMultiplier": 8,
+        "coneHalfAngleDegrees": 70,
+        "secondPlatePenetrationFactor": 0.1
+      },
+      "modifiers": {},
+      "nativeTechnologyIds": [],
+      "modules": {
+        "tail": {
+          "kind": "spin"
+        },
+        "propulsion": {
+          "kind": "ballistic"
+        },
+        "body": {
+          "kind": "fullBore"
+        },
+        "effect": {
+          "kind": "hesh"
+        },
+        "carrier": {
+          "kind": "fullBore"
+        }
+      }
+    },
+    {
+      "id": "example_apfsds_6",
+      "label": "APFSDS voorbeeld 6",
+      "originBehavior": "apfsds",
+      "legacyProfile": {
+        "id": "example_apfsds_6",
+        "label": "APFSDS voorbeeld 6",
+        "penetratorDiameterFactor": 0.2199999988079071,
+        "penetratorLengthInCalibres": 6,
+        "penetratorDensity": 17500,
+        "velocityEfficiency": 0.8500000238418579,
+        "velocityMultiplier": 1,
+        "maximumVelocityFactor": 2.200000047683716,
+        "maximumVelocity": 2200,
+        "penetrationQuality": 0.45,
+        "fragmentDamageMultiplier": 0.5,
+        "behavior": "apfsds"
+      },
+      "modifiers": {},
+      "nativeTechnologyIds": [],
+      "modules": {
+        "tail": {
+          "kind": "fins"
+        },
+        "propulsion": {
+          "kind": "ballistic"
+        },
+        "body": {
+          "kind": "longRod"
+        },
+        "effect": {
+          "kind": "kinetic"
+        },
+        "carrier": {
+          "kind": "sabot"
+        }
+      }
+    },
+    {
+      "id": "example_atgm_7",
+      "label": "ATGM voorbeeld 7",
+      "originBehavior": "atgm",
+      "legacyProfile": {
+        "id": "example_atgm_7",
+        "label": "ATGM voorbeeld 7",
+        "behavior": "atgm",
+        "penetratorDiameterFactor": 0.9,
+        "penetratorLengthInCalibres": 5,
+        "penetratorDensity": 1800,
+        "velocityEfficiency": 0.1,
+        "velocityMultiplier": 1,
+        "maximumVelocityFactor": 1,
+        "maximumVelocity": 200,
+        "penetrationQuality": 0.45,
+        "fragmentDamageMultiplier": 1,
+        "referenceCalibreMm": 135,
+        "chemicalPenetrationMm": 600,
+        "spallMultiplier": 1.5,
+        "coneHalfAngleDegrees": 8,
+        "explosionScale": 0.7,
+        "secondPlatePenetrationFactor": 0.15,
+        "airGapLossPerCalibre": 0.35,
+        "flightSpeed": 200,
+        "maxTurnRate": 20,
+        "maximumFlightTime": 25,
+        "guidanceDelay": 0.25,
+        "guidanceMode": "sight",
+        "launchSpeed": 50,
+        "launchSpeedMode": "fixed",
+        "launchSpeedMultiplier": 1,
+        "acceleration": 150,
+        "motorDelay": 0.12,
+        "motorBurnTime": 4,
+        "coastDeceleration": 1
+      },
+      "modifiers": {},
+      "nativeTechnologyIds": [],
+      "modules": {
+        "tail": {
+          "kind": "guided"
+        },
+        "propulsion": {
+          "kind": "rocket"
+        },
+        "body": {
+          "kind": "shapedCharge"
+        },
+        "effect": {
+          "kind": "heat"
+        },
+        "carrier": {
+          "kind": "launcher"
+        }
+      }
+    },
+    {
+      "id": "example_atgm_gun_8",
+      "label": "ATGM_GUN voorbeeld 8",
+      "originBehavior": "atgm_gun",
+      "legacyProfile": {
+        "id": "example_atgm_gun_8",
+        "label": "ATGM_GUN voorbeeld 8",
+        "behavior": "atgm_gun",
+        "penetratorDiameterFactor": 0.9,
+        "penetratorLengthInCalibres": 5,
+        "penetratorDensity": 1800,
+        "velocityEfficiency": 0.1,
+        "velocityMultiplier": 1,
+        "maximumVelocityFactor": 1,
+        "maximumVelocity": 200,
+        "penetrationQuality": 0.45,
+        "fragmentDamageMultiplier": 1,
+        "referenceCalibreMm": 135,
+        "chemicalPenetrationMm": 600,
+        "spallMultiplier": 1.5,
+        "coneHalfAngleDegrees": 8,
+        "explosionScale": 0.7,
+        "secondPlatePenetrationFactor": 0.15,
+        "airGapLossPerCalibre": 0.35,
+        "flightSpeed": 200,
+        "maxTurnRate": 20,
+        "maximumFlightTime": 25,
+        "guidanceDelay": 0.25,
+        "guidanceMode": "sight",
+        "launchSpeed": 50,
+        "launchSpeedMode": "cannon",
+        "launchSpeedMultiplier": 0.2,
+        "acceleration": 150,
+        "motorDelay": 0.08,
+        "motorBurnTime": 4,
+        "coastDeceleration": 1
+      },
+      "modifiers": {},
+      "nativeTechnologyIds": [],
+      "modules": {
+        "tail": {
+          "kind": "guided"
+        },
+        "propulsion": {
+          "kind": "rocket"
+        },
+        "body": {
+          "kind": "shapedCharge"
+        },
+        "effect": {
+          "kind": "heat"
+        },
+        "carrier": {
+          "kind": "gunLaunch"
+        }
+      }
+    }
+  ],
+  "sourceEnvelope": null
+}

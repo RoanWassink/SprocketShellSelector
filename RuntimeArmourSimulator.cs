@@ -14,6 +14,11 @@ internal static class RuntimeArmourSimulator
     [ThreadStatic] private static ArmourOverlay? activeOverlay;
     [ThreadStatic] internal static bool DrawingShellChoice;
     private static IReadOnlyList<ShellProfile> SimulatorProfiles(ArmourOverlay? overlay) => RuntimeShellEra.Available(RuntimeShellSelection.Profiles,RuntimeShellEra.PreviewOwner(overlay)).Where(p=>p.Behavior!="he").ToArray();
+    internal static void Refresh()
+    {
+        foreach(var choice in Choices.Values)
+            try { if(choice.Overlay!=null)choice.Overlay.RedrawRequired=true; } catch(Exception ex) { Plugin.ModLog.LogWarning("[Shell editor] Simulator refresh: "+ex.Message); }
+    }
     internal static void Configure()
     {
         Labels.Clear();Labels.Add("Vanilla ammunition");
@@ -62,7 +67,11 @@ internal static class RuntimeArmourSimulator
                 if(selected!=null)
                     ui.InfoField("Penetration is chosen by slider; chemical profiles also obey a calibre-scaled budget. Select live shells separately on the cannon.",2);
                 if(selected?.Behavior is "heat" or "hesh" or "atgm" or "atgm_gun")
+                    {
                     ui.InfoField(RuntimeShellEra.ChemicalDescription(selected,RuntimeShellEra.PreviewOwner(__instance.overlay)),2);
+                    ui.InfoField("Chemical budget is nominal RHA penetration. Native armour path, slope, materials and air gaps determine the result; simulator distance is not flight range.",2);
+                    if(selected.Behavior=="hesh")ui.InfoField("HESH is a broad spall proxy after native perforation, not a true back-face shock/scab simulation.",2);
+                }
             }
             finally{layout.EndAllDropdowns();}
         }
@@ -111,3 +120,4 @@ internal static class RuntimeArmourSimulator
         catch(Exception ex){Plugin.ModLog.LogError("[Armour Simulator] Shot: "+ex);}
     }
 }
+

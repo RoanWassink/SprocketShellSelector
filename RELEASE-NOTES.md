@@ -1,17 +1,13 @@
-# Sprocket Shell Selector v0.12.5
+# Shell Selector 0.13.0 — Beta
 
-Adds a dedicated square-tube **ATGM launcher** and **finite ATGM ammunition box**. Each launcher starts a new combat instance with one ready missile; subsequent shots require compatible reserve ammunition. Optional automatic box loading supports matching nearby launchers, native finite capacity and an assigned gunner.
+- Create and duplicate shells in the in-game modular editor. Choose body, effect, tail, propulsion and carrier, then Save to refresh compatible profiles.
+- A wire-guided TOW-inspired example includes cable gravity and ground settling after detachment.
+- Optional on-screen damage feed shows penetration, remaining penetration, detected crew/component damage and ERA activation.
+- Works with the new placeable ERA presets and matching Material Selector 0.5.0 catalogues.
+- HEAT and HESH preserve their configured penetration budget across flight distance; armour angle and spacing still affect impacts.
 
-Shell availability now follows native Technology dates and enabled records for each behavior. The nine included files provide AP, HE, APHE, HEAT, HESH, APFSDS and both ATGM launch types. Unchanged stock HEAT advances from 1.2 to 4 penetration per calibre through its dated technology examples; customized chemical profiles retain their own settings.
-
-The plugin ID, CFG filename and Harmony owners now use **sprocket.shellselector**. An existing legacy CFG is copied intact only if the neutral CFG is absent, with the original retained for rollback. Saved shell/profile/part identifiers and custom JSON remain compatible. Dependent plugins must update their Shell Selector dependency lookup to the new ID.
-
-## Installation
-
-Close Sprocket and merge the installation ZIP into its game folder. Include the supplied Parts, Localization, icons and Technology files; preserve customized configuration and Technology files. See [README](README.md) for the optional automatic-feed setting, crew requirements and complete setup.
-
-The existing missile flight, guidance, AI, audio, exhaust and armour-response mechanics are retained.
+The shared JSON Editor 0.1.0 is included and required. Keep customized profiles and native Technology files. Unsupported module combinations remain drafts; existing live shells are preserved. HESH is a perforation/spall approximation. Damage reporting can miss secondary events; no full tandem or physical shaped-charge simulation is provided.
 
 <!-- sp-compat {"hamish.sprocket": "0.2.55.5", "bepinex.bepinex": "6.0.0-be.788"} -->
 
-[Support development](https://www.paypal.com/donate/?hosted_button_id=7PE3SDBETXFQ6) to help with the ChatGPT budget and reverse engineering.
+[Support my ChatGPT budget and help me reverse engineer Sprocket to make more mods.](https://www.paypal.com/donate/?hosted_button_id=7PE3SDBETXFQ6)

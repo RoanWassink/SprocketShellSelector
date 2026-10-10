@@ -34,7 +34,7 @@ internal static class RuntimeAtgmAi
             {
                 if(cannon.HorizontalAimingMechanism?.Pointer!=mechanism.Pointer && cannon.VerticalAimingMechanism?.Pointer!=mechanism.Pointer)continue;
                 var profile=RuntimeShellSelection.CannonProfile(cannon);
-                if(profile==null || !ShellBalance.IsAtgm(profile.Behavior) || profile.Atgm?.GuidanceMode=="none" || cannon.HealthFraction<=0)continue;
+                if(profile==null || !ShellBalance.FlightEnabled(profile) || profile.Atgm?.GuidanceMode=="none" || cannon.HealthFraction<=0)continue;
                 var vehicle=cannon.Vehicle?.Behaviour;
                 if(vehicle!=null && RuntimeAtgm.IsPlayerVehicle(vehicle.Pointer))continue;
                 active=new(cannon,profile);
@@ -55,7 +55,9 @@ internal static class RuntimeAtgmAi
         {
             static bool Finite(Vector3 v)=>float.IsFinite(v.x)&&float.IsFinite(v.y)&&float.IsFinite(v.z);
             if(!Finite(__0)||!Finite(__1)||!Finite(__2))return true;
-            var point=AtgmGuidance.AiIntercept(new NVector(__0.x,__0.y,__0.z),new NVector(__1.x,__1.y,__1.z),new NVector(__2.x,__2.y,__2.z),active.Profile.Atgm!);
+            var settings=active.Profile.Atgm!;
+            if(!ShellBalance.Powered(active.Profile))settings=settings with {FlightSpeed=Math.Max(10,active.Cannon.muzzleVelocity)};
+            var point=AtgmGuidance.AiIntercept(new NVector(__0.x,__0.y,__0.z),new NVector(__1.x,__1.y,__1.z),new NVector(__2.x,__2.y,__2.z),settings);
             var result=new Vector3(point.X,point.Y,point.Z);
             if(!Finite(result))return true;
             __result=result;

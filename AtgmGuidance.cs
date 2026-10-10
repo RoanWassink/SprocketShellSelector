@@ -58,14 +58,14 @@ internal static class AtgmGuidance
         Range("motorBurnTime", s.MotorBurnTime, 0, 60);
         Range("coastDeceleration", s.CoastDeceleration, 0, 100);
         Range("motorDelay", s.MotorDelay, 0, 5);
-        if (s.Acceleration > 0 && s.MotorDelay >= s.MaximumFlightTime)
+        if (p.Flight==null && s.Acceleration > 0 && s.MotorDelay >= s.MaximumFlightTime)
             throw new FormatException($"Profile '{p.Id}': motorDelay must be less than maximumFlightTime when acceleration is enabled.");
         if (s.LaunchSpeedMode is not ("fixed" or "cannon"))
             throw new FormatException($"Profile '{p.Id}': launchSpeedMode is '{s.LaunchSpeedMode}'; expected fixed or cannon.");
         Range("maxTurnRate", s.MaxTurnRate, 0, 90);
         Range("maximumFlightTime", s.MaximumFlightTime, 1, 60);
         Range("guidanceDelay", s.GuidanceDelay, 0, 5);
-        if (s.GuidanceDelay >= s.MaximumFlightTime)
+        if (p.Flight==null && s.GuidanceDelay >= s.MaximumFlightTime)
             throw new FormatException(FormattableString.Invariant($"Profile '{p.Id}': guidanceDelay is {s.GuidanceDelay}; expected less than maximumFlightTime ({s.MaximumFlightTime})."));
         if (s.GuidanceMode is not ("sight" or "keyboard" or "none"))
             throw new FormatException($"Profile '{p.Id}': guidanceMode is '{s.GuidanceMode}'; expected sight, keyboard or none.");

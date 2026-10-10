@@ -1,0 +1,47 @@
+{
+  "responseId": "kontakt1Cassette",
+  "kind": "lightEra",
+  "compatibleMaterialIds": [
+    "kontakt1Cassette"
+  ],
+  "minimumEra": "coldwar",
+  "historicalDate": "1945.09.03",
+  "status": "candidate",
+  "passiveMaterial": {
+    "density": 4300,
+    "rhaFactor": 0.35,
+    "spallFactor": 0.25,
+    "requestedCostMultiplier": 8.25
+  },
+  "calibration": {
+    "heatRetention": 0.62,
+    "intactRodRetention": 1,
+    "disturbedRodRetention": 1,
+    "disturbanceContribution": 0
+  },
+  "geometry": {
+    "mode": "declaredCassette",
+    "minNormalThicknessMm": 15,
+    "maxNormalThicknessMm": 60,
+    "angularCurve": [
+      {
+        "angleDegrees": 0,
+        "weight": 1
+      },
+      {
+        "angleDegrees": 60,
+        "weight": 1
+      },
+      {
+        "angleDegrees": 80,
+        "weight": 0
+      }
+    ],
+    "measuredGapCurve": [],
+    "minMeasuredGapMm": 0,
+    "maxMeasuredGapMm": 0
+  },
+  "era": {
+    "cellPitchM": 0.25
+  }
+}

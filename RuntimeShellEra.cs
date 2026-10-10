@@ -15,7 +15,7 @@ internal static class RuntimeShellEra
     private sealed record PreviewBinding(IVehicleEditor Editor,IVehicleOverlayApplier Applier);
     private static readonly Dictionary<IntPtr,PreviewBinding> previewOwners=new();
     private static readonly string[] behaviors={"ap","he","aphe","heat","hesh","apfsds","atgm","atgm_gun"};
-    internal static ShellEraContext? Context(IVehicleGateway? owner)
+    internal static ShellEraContext? Context(IVehicleGateway? owner,IEnumerable<string>? requirements=null)
     {
         try
         {
@@ -41,7 +41,10 @@ internal static class RuntimeShellEra
                         if(float.IsFinite(factor)&&factor>0&&factor<=20)heatFactor=factor;
                     }
                 }
-            var context=new ShellEraContext(date,names,starts,index,available,heatFactor);
+            var enabledTechnologies=available.Select(b=>"shellSelector_"+b).ToHashSet(StringComparer.Ordinal);
+            foreach(var id in requirements??Array.Empty<string>())
+                if(tech.TryGetTech(id,out var required)&&required!=null&&required.GetBool("enabled",false))enabledTechnologies.Add(id);
+            var context=new ShellEraContext(date,names,starts,index,available,heatFactor,enabledTechnologies);
             return ShellEraPolicy.Valid(context)?context:null;
         }
         catch{return null;}
@@ -50,12 +53,12 @@ internal static class RuntimeShellEra
     internal static bool HasNativeContext(IVehicleGateway? owner)=>Context(owner)!=null;
     internal static bool Allowed(ShellProfile profile,IVehicleGateway? owner)
     {
-        var c=Context(owner);
+        var c=Context(owner,ShellBalance.RequiredTechnologyIds(profile));
         return ShellEraPolicy.Allowed(profile,c)&&(!ShellChemicalBudget.IsStock(profile)||c?.HeatFactor!=null);
     }
     internal static double ChemicalBudget(ShellProfile p,double calibre,IVehicleGateway? owner)
     {
-        var c=Context(owner);
+        var c=Context(owner,ShellBalance.RequiredTechnologyIds(p));
         return ShellChemicalBudget.Resolve(p,calibre,c?.HeatFactor,ShellEraPolicy.Allowed(p,c));
     }
     internal static string ChemicalDescription(ShellProfile p,IVehicleGateway? owner)=>ShellChemicalBudget.Description(p,Context(owner)?.HeatFactor);

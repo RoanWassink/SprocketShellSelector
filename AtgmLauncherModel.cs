@@ -3,7 +3,7 @@ internal readonly record struct LauncherBox(string Name,float X,float Y,float Z,
 internal static class AtgmLauncherModel
 {
     internal const string Guid="07a91e5d-be14-5a5c-9321-574b21aadcf3";
-    internal static bool Allows(ShellProfile? profile)=>profile?.Behavior=="atgm"&&profile.Atgm!=null;
+    internal static bool Allows(ShellProfile? profile)=>profile!=null&&ShellBalance.Carrier(profile)=="launcher";
     internal static LauncherBox[] SegmentBoxes(float length,float frontOffset,bool mount)
     {
         if(!float.IsFinite(length)||length<=0||!float.IsFinite(frontOffset))throw new ArgumentOutOfRangeException(nameof(length));

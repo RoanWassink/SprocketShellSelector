@@ -2,11 +2,14 @@ using System.Text.Json;
 
 namespace SprocketShellSelector;
 
+internal sealed record ShellFlight(string Propulsion, string Guidance, string Carrier);
+
 internal sealed record ShellProfile(string Id, string Label, DartSettings Settings,
     string Behavior = "ap", double ChemicalPenetrationMm = 0,
     double NativeExplosivePower = 0, double SpallMultiplier = 1,
     double ConeHalfAngleDegrees = 90, double ExplosionScale = 1, double SecondPlatePenetrationFactor = .15,
-    double AirGapLossPerCalibre = .35, double ReferenceCalibreMm = 100, AtgmSettings? Atgm = null,string? MinimumEra=null);
+    double AirGapLossPerCalibre = .35, double ReferenceCalibreMm = 100, AtgmSettings? Atgm = null,string? MinimumEra=null,
+    ShellFlight? Flight=null,IReadOnlyList<string>? NativeTechnologyIds=null,WireOptions? Wire=null);
 
 // Managed data only: the same validation runs before UI, previews and native shots.
 internal static class ShellProfiles
@@ -20,7 +23,7 @@ internal static class ShellProfiles
         "penetrationQuality", "fragmentDamageMultiplier"
     };
     private static readonly HashSet<string> Optional = new(StringComparer.Ordinal)
-    { "minimumEra", "behavior", "chemicalPenetrationMm", "nativeExplosivePower", "spallMultiplier", "coneHalfAngleDegrees", "explosionScale", "secondPlatePenetrationFactor", "airGapLossPerCalibre", "referenceCalibreMm", "flightSpeed", "maxTurnRate", "maximumFlightTime", "guidanceDelay", "guidanceMode", "launchSpeed", "launchSpeedMode", "launchSpeedMultiplier", "acceleration", "motorDelay", "motorBurnTime", "coastDeceleration" };
+    { "guidanceTransport", "wireMaximumLength", "wireRetentionSeconds", "wireDisplayWidth", "wireSampleDistance", "flight", "nativeTechnologyIds", "minimumEra", "behavior", "chemicalPenetrationMm", "nativeExplosivePower", "spallMultiplier", "coneHalfAngleDegrees", "explosionScale", "secondPlatePenetrationFactor", "airGapLossPerCalibre", "referenceCalibreMm", "flightSpeed", "maxTurnRate", "maximumFlightTime", "guidanceDelay", "guidanceMode", "launchSpeed", "launchSpeedMode", "launchSpeedMultiplier", "acceleration", "motorDelay", "motorBurnTime", "coastDeceleration" };
 
     internal static IReadOnlyList<ShellProfile> Parse(string json)
     {
@@ -59,12 +62,28 @@ internal static class ShellProfiles
             var behavior = item.TryGetProperty("behavior",out var mode) ? mode.GetString() ?? "" : id is "apfsds" or "aphe" ? id : "ap";
             double Option(string key,double fallback) => item.TryGetProperty(key,out var value) ? ReadNumber(key, value) : fallback;
             string TextOption(string key,string fallback) => item.TryGetProperty(key,out var value) ? value.ValueKind==JsonValueKind.String ? value.GetString()! : "<invalid type>" : fallback;
+            ShellFlight? flight=null;
+            if(item.TryGetProperty("flight",out var flightJson))
+            {
+                CheckFields(flightJson,new HashSet<string>(StringComparer.Ordinal){"propulsion","guidance","carrier"});
+                flight=new(flightJson.GetProperty("propulsion").GetString()??"",flightJson.GetProperty("guidance").GetString()??"",flightJson.GetProperty("carrier").GetString()??"");
+            }
+            IReadOnlyList<string>? required=null;
+            if(item.TryGetProperty("nativeTechnologyIds",out var technologyJson))
+            {
+                if(technologyJson.ValueKind!=JsonValueKind.Array)throw new FormatException($"Profile '{id}': nativeTechnologyIds must be an array.");
+                required=technologyJson.EnumerateArray().Select(t=>t.ValueKind==JsonValueKind.String?t.GetString()!:"").ToArray();
+            }
+            var needsFlight=flight==null?ShellBalance.IsAtgm(behavior):flight.Propulsion=="rocket"||flight.Guidance!="none";
             var profile = new ShellProfile(id,label,settings,behavior,
                 Option("chemicalPenetrationMm",0),Option("nativeExplosivePower",0),
                 Option("spallMultiplier",1),Option("coneHalfAngleDegrees",90),Option("explosionScale",1),Option("secondPlatePenetrationFactor",behavior=="hesh"?.1:.15),Option("airGapLossPerCalibre",behavior=="hesh"?12:.35),Option("referenceCalibreMm",100),
-                ShellBalance.IsAtgm(behavior) ? new AtgmSettings(Option("flightSpeed",200),Option("maxTurnRate",20),Option("maximumFlightTime",25),Option("guidanceDelay",.25),
-                    TextOption("guidanceMode","sight"), item.TryGetProperty("launchSpeed",out var launch) ? ReadNumber("launchSpeed",launch) : null,
-                    TextOption("launchSpeedMode","fixed"),Option("launchSpeedMultiplier",1),Option("acceleration",0),Option("motorDelay",0),Option("motorBurnTime",0),Option("coastDeceleration",0)) : null);
+                needsFlight ? new AtgmSettings(Option("flightSpeed",200),Option("maxTurnRate",20),Option("maximumFlightTime",25),Option("guidanceDelay",.25),
+                    flight?.Guidance??TextOption("guidanceMode","sight"), item.TryGetProperty("launchSpeed",out var launch) ? ReadNumber("launchSpeed",launch) : null,
+                    TextOption("launchSpeedMode","fixed"),Option("launchSpeedMultiplier",1),Option("acceleration",0),Option("motorDelay",0),Option("motorBurnTime",0),Option("coastDeceleration",0)) : null,
+                Flight:flight,NativeTechnologyIds:required,
+                Wire:item.EnumerateObject().Any(p=>p.Name=="guidanceTransport"||p.Name.StartsWith("wire",StringComparison.Ordinal))
+                    ?new WireOptions(TextOption("guidanceTransport","current"),Option("wireMaximumLength",4000),Option("wireRetentionSeconds",20),Option("wireDisplayWidth",.008),Option("wireSampleDistance",2)):null);
             ShellPayload.Validate(profile);
             if(item.TryGetProperty("minimumEra",out var era))
             {
@@ -120,3 +139,4 @@ internal static class ShellProfiles
         return requested == Vanilla || profiles.Any(p => p.Id == requested) ? requested : Vanilla;
     }
 }
+

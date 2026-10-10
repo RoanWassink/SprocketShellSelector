@@ -975,3 +975,208 @@ try
 }
 finally{Directory.Delete(pluginMigrationTemp,true);}
 Console.WriteLine($"PLUGIN IDENTITY MIGRATION PASS: {checks} checks.");
+
+var editorDir=Path.Combine(Path.GetTempPath(),"SprocketShellEditor-"+Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(editorDir);
+try
+{
+    var json=ReleaseProfiles.Defaults();
+    var edit=new ShellEditorDraft(json);
+    Check(System.Text.Json.Nodes.JsonNode.DeepEquals(edit.Root,System.Text.Json.Nodes.JsonNode.Parse(edit.Serialize())),"editor round-trip preserves all preset settings");
+    var originalIds=ShellProfiles.Parse(json).Select(p=>p.Id).ToArray();
+    edit.Set(0,"label","Editor custom name");
+    edit.Set(0,"maximumVelocity","2100,5");
+    Check(ShellProfiles.Parse(edit.Serialize())[0].Settings.MaxVelocity==2100.5,"editor accepts decimal comma as numeric input");
+    Check(ShellProfiles.Parse(edit.Serialize()).Select(p=>p.Id).SequenceEqual(originalIds),"editor preserves saved IDs");
+    bool rejected=false;try{edit.Set(0,"id","changed");}catch(InvalidOperationException){rejected=true;}Check(rejected,"editor rejects ID changes");
+    rejected=false;try{edit.Set(0,"maximumVelocity","NaN");}catch(FormatException){rejected=true;}Check(rejected,"editor rejects non-finite values");
+    var duplicate=edit.Duplicate(edit.Profiles[0]!.AsObject());
+    Check(ShellProfiles.Parse(edit.Serialize())[duplicate].Id!=originalIds[0],"duplicate gets unique identity");
+    var path=Path.Combine(editorDir,"shells.json");File.WriteAllText(path,json);
+    var backup=edit.Save(path);
+    Check(File.ReadAllText(backup)==json,"save backs up original bytes");
+    Check(File.ReadAllText(path)==edit.Serialize(),"save atomically commits validated draft");
+    var changed=new ShellEditorDraft(File.ReadAllText(path));File.AppendAllText(path,"\n");var external=File.ReadAllText(path);
+    rejected=false;try{changed.Save(path);}catch(IOException){rejected=true;}Check(rejected&&File.ReadAllText(path)==external,"external edits are never overwritten");
+    var invalid=new ShellEditorDraft(json);invalid.Set(0,"maximumVelocity","-1");File.WriteAllText(path,json);
+    rejected=false;try{invalid.Save(path);}catch(Exception){rejected=true;}Check(rejected&&File.ReadAllText(path)==json,"invalid draft cannot overwrite file");
+    var limited=new ShellEditorDraft(json);while(limited.Profiles.Count<16)limited.Duplicate(limited.Profiles[0]!.AsObject());
+    rejected=false;try{limited.Duplicate(limited.Profiles[0]!.AsObject());}catch(InvalidOperationException){rejected=true;}Check(rejected&&limited.Profiles.Count==16,"editor enforces profile capacity");
+    var cancelled=new ShellEditorDraft(json);cancelled.Set(0,"label","Cancelled draft");Check(File.ReadAllText(path)==json,"draft changes never touch file before save");
+}
+finally{Directory.Delete(editorDir,true);}
+Console.WriteLine($"SHELL EDITOR PASS: {checks} checks.");
+
+foreach(var behavior in new[]{"ap","apfsds","aphe","he","heat","hesh","atgm","atgm_gun"})
+{
+ var editorConversion=new ShellEditorDraft(ReleaseProfiles.Defaults());
+ var oldId=editorConversion.Profiles[0]!["id"]!.GetValue<string>();
+ editorConversion.ChangeBehavior(0,behavior);
+ var parsedConversion=ShellProfiles.Parse(editorConversion.Serialize())[0];
+ Check(parsedConversion.Behavior==behavior&&parsedConversion.Id==oldId,"behavior dropdown conversion validates and preserves identity: "+behavior);
+}
+Console.WriteLine($"SHELL EDITOR CHOICES PASS: {checks} checks.");
+ModularChecks.Run(Check);
+Console.WriteLine($"MODULAR SHELL COMPILER PASS: {checks} checks.");
+FunctionalChecks.Run(Check);
+Console.WriteLine($"FUNCTIONAL MODULAR SHELL PASS: {checks} checks.");
+
+WireChecks.Run(Check);
+WireSettlingChecks.Run(Check);
+Console.WriteLine($"WIRE INTEGRATION PURE PASS: {checks} checks.");
+
+var towRow=ShellExampleProfiles.Tow();
+var towEnvelope=new System.Text.Json.Nodes.JsonObject {["schemaVersion"]=1,["profiles"]=new System.Text.Json.Nodes.JsonArray(towRow.DeepClone())};
+var towProfile=ShellProfiles.Parse(towEnvelope.ToJsonString()).Single();
+Check(towProfile.Flight==new ShellFlight("rocket","sight","launcher")&&towProfile.Behavior=="heat"&&towProfile.Wire?.Transport=="wire","TOW template compiles independent rocket/HEAT/SACLOS/wire modules");
+Check(Math.Abs(ShellBalance.ChemicalPenetration(towProfile,152.4)-430)<1e-6&&towProfile.Wire?.MaximumLength==3000,"TOW reference calibre chemical calibration and basic wire budget");
+Check(ShellExampleProfiles.Templates().Count==System.Text.Json.Nodes.JsonNode.Parse(ReleaseProfiles.Defaults())!["profiles"]!.AsArray().Count+1,"TOW is opt-in editor template; default catalogue not injected");
+var towDraft=new ModularShellDraft(ReleaseProfiles.Defaults());
+var towIndex=towDraft.Duplicate(ModularShellDraft.FromLegacy(towRow));
+var towCompiled=ShellProfiles.Parse(towDraft.Compile().RuntimeJson!)[towIndex];
+Check(towCompiled.Flight==towProfile.Flight&&towCompiled.Wire==towProfile.Wire&&towCompiled.Atgm==towProfile.Atgm,"TOW authoring and compilation preserves wire/motor/guidance calibration");
+Console.WriteLine($"CHEMICAL / TOW PASS: {checks} checks.");
+
+
+
+var reliktShared=new EraCells();var reliktOwned=new PlacedEraState();
+var oldPlateCell=new EraCell(1,10,2,3,4);reliktShared.Consume(oldPlateCell);
+var brickKey=PlacedEraState.Key(1,11);reliktShared.Consume(brickKey);reliktOwned.Track(brickKey);
+Check(!reliktShared.Consume(PlacedEraState.Key(1,11)),"one whole brick canonical key cannot rearm by hit position or surface");
+Check(reliktOwned.Spent(reliktShared,1,11)&&!reliktOwned.Spent(reliktShared,2,11),"brick consumption isolated by spawn generation");
+Check(reliktShared.Consume(PlacedEraState.Key(1,12)),"distinct brick independent canonical VUID");reliktOwned.Track(PlacedEraState.Key(1,12));
+reliktOwned.Reset(reliktShared);Check(reliktShared.Contains(oldPlateCell)&&!reliktOwned.Spent(reliktShared,1,11)&&!reliktOwned.Spent(reliktShared,1,12),"Edit reset clears newbrick cells only, preserves old plate ERA");
+Check(reliktShared.Consume(brickKey),"new combat may consume reset brick again");
+Console.WriteLine($"PLACED ERA PURE PASS: {checks} checks.");
+
+Check(DamageFeedTruth.Outcome(false,true,false,1)==PlateOutcome.Unknown,"embedded continuation is not final armour stop");
+Check(DamageFeedTruth.Outcome(false,false,false,0)==PlateOutcome.Unknown,"killed or ended chain alone does not prove armour stop");
+Check(DamageFeedTruth.Outcome(true,false,false,1)==PlateOutcome.Penetrated,"native penetration flag reports penetration");
+Check(DamageFeedTruth.Outcome(false,true,false,0)==PlateOutcome.Stopped,"native embedded final original reports stop");
+Check(DamageFeedTruth.Outcome(false,false,true,1)==PlateOutcome.Deflected,"native deflection reports deflection");
+Check(DamageFeedTruth.Outcome(true,false,false,1,true)==PlateOutcome.Unknown,"native exception cannot report success");
+Check(DamageFeedTruth.Remaining(Array.Empty<double>())==null,"no original continuation omits residual");
+Check(DamageFeedTruth.Remaining(new[]{300d,280d})==null,"ambiguous original continuation omits residual");
+Check(DamageFeedTruth.Remaining(new[]{42d})==42,"one actual original continuation reports residual");
+Check(DamageFeedTruth.Remaining(new[]{double.NaN})==null,"nonfinite residual omitted");
+Check(!DamageFeedTruth.Died(null,false,-1),"unknown alive baseline cannot claim kill");
+Check(!DamageFeedTruth.Died(false,false,-1),"already dead pool cannot claim another kill");
+Check(DamageFeedTruth.Died(true,false,-1),"observed native alive to dead negative health change proves kill");
+Check(!DamageFeedTruth.Died(true,false,1),"positive health event cannot claim kill");
+Check(new ComponentDamage("destroyed",true).Merge(new("damaged",false)).Text=="destroyed","later spall cannot downgrade destruction");
+Check(!new ComponentDamage("damaged",false).Merge(new("wounded",false)).Fatal,"damage cannot become inferred death");
+Check(DamageFeedTruth.Label("<Custom>\nplate","fallback")=="Customplate","custom labels plain sanitized text");
+Check(DamageFeedTruth.Label("  ","Plate #4")=="Plate #4","empty name uses truthful ID fallback");
+Check(DamageFeedTruth.Label(new string('x',100),"fallback").Length==32,"native labels bounded");
+var feed=new DamageFeedBuffer();feed.Add(1,new[]{"ERA 500 -> 346 mm","Penetrated plate 40 mm left"});
+Check(feed.Visible(8.99).Count==2,"ERA and layer outcomes coexist until expiration");
+Check(feed.Visible(9).Count==0,"feed rows expire at eight seconds");
+feed.Add(10,Enumerable.Range(0,20).Select(i=>i.ToString()));feed.Add(11,new[]{"latest"});
+Check(feed.Visible(11).Count==12&&feed.Visible(11).Last().Text=="latest","bounded feed retains newest rows");
+Check(feed.Visible(0).Count==0,"new combat clock does not retain future rows");
+feed.Add(double.NaN,new[]{"invalid"});Check(feed.Visible(0).Count==0,"nonfinite timestamp cannot enqueue");
+Console.WriteLine($"DAMAGE FEED PURE PASS: {checks} checks.");
+
+var boxVertices=PlacedBrickGeometry.Triangles.Select(i=>PlacedBrickGeometry.Corners[i]).ToArray();
+Check(PlacedBrickGeometry.MeshMatches(boxVertices,Enumerable.Range(0,36).ToArray()),"exact current native collision triangle soup validated");
+var changedBox=boxVertices.ToArray();changedBox[0]+=new System.Numerics.Vector3(.001f,0,0);
+Check(!PlacedBrickGeometry.MeshMatches(changedBox,Enumerable.Range(0,36).ToArray()),"unknown altered collision cannot get declared depth");
+Check(!PlacedBrickGeometry.UnitScale(new(1,2,1)),"scaled ownpart not implicitly granted fixed cassette gate");
+Check(PlacedBrickGeometry.UnitScale(new(-1,1,1)),"mirrored unit geometry admissible");
+Check(PlacedBrickGeometry.Chord(new(0,.096f,0),new(0,.026f,0),new(0,-1,0),out var boxDepth)&&Math.Abs(boxDepth-70)<.001,"full native chord proves physical depth");
+var edgeDir=System.Numerics.Vector3.Normalize(new System.Numerics.Vector3(1,-.4f,0));var edgeEntry=new System.Numerics.Vector3(.20f,.096f,0);var edgeExit=edgeEntry+edgeDir*(.012f/edgeDir.X);
+Check(PlacedBrickGeometry.Chord(edgeEntry,edgeExit,edgeDir,out var edgeDepth)&&Math.Abs(edgeDepth-70)<.001,"short oblique edge chord still belongs validated physical70mm brick");
+Check(!PlacedBrickGeometry.Chord(new(0,.05f,0),new(0,.026f,0),new(0,-1,0),out _),"inside start cannot masquerade as first surface impact");
+Check(!PlacedBrickGeometry.Chord(new(0,.096f,0),new(0,.026f,0),new(0,1,0),out _),"outward local surface trajectory rejected");
+Check(!PlacedBrickGeometry.Chord(new(0,.096f,0),new(0,-.2f,0),new(0,-1,0),out _),"merged foreign exit cannot prove own collision chord");
+Check(!PlacedBrickGeometry.Chord(new(.4f,.096f,0),new(.4f,.026f,0),new(0,-1,0),out _),"surface outside native box rejected");
+var ownHits=new[]{new PlacedBrickGeometry.Boundary(2,3,3,false,true,false),new PlacedBrickGeometry.Boundary(1,3,1,true,false,false),new PlacedBrickGeometry.Boundary(1,3,2,false,true,false),new PlacedBrickGeometry.Boundary(2,3,2.1f,true,false,false)};
+Check(PlacedBrickGeometry.OwnExit(ownHits,1,3)==2,"unsorted merged native span selects actually reached first own exit");
+Check(PlacedBrickGeometry.OwnExit(ownHits,3,2.5f)==-1,"unreached later own exit outside nativeblock not invented");
+Check(PlacedBrickGeometry.OwnExit(ownHits,1,1.5f)==-1,"future exit beyond reached block rejected");
+Check(PlacedBrickGeometry.OwnExit(ownHits.Concat(new[]{ownHits[2]}).ToArray(),1,3)==-1,"ambiguous coincident own exit rejected");
+var insideHits=ownHits.ToArray();insideHits[1]=insideHits[1] with {Inside=true};
+Check(PlacedBrickGeometry.OwnExit(insideHits,1,3)==2,"mutable native InsideBlock marker is not projectile-inside geometry");
+var structureHits=ownHits.ToArray();structureHits[2]=structureHits[2] with {Structure=4};
+Check(PlacedBrickGeometry.OwnExit(structureHits,1,3)==-1,"different native structure cannot supply own closed exit");
+Console.WriteLine($"PLACED BRICK GEOMETRY PASS: {checks} checks.");
+
+Check(PlacedBrickTrigger.Reached(true,true,true,false,1,70),"actual native entry sufficient without own exit chord");
+Check(PlacedBrickTrigger.Reached(true,true,true,false,0,70),"reached partial/merged native entry permits fixedpart calibration");
+Check(!PlacedBrickTrigger.Reached(false,true,true,false,1,70),"mount/othercomponent/missedcassette cannot trigger");
+Check(!PlacedBrickTrigger.Reached(true,true,false,true,1,70),"native exit alone cannot trigger");
+Check(!PlacedBrickTrigger.Reached(true,false,true,false,1,70),"spall fragment cannot activate future cassette");
+Check(!PlacedBrickTrigger.Reached(true,true,true,false,double.NaN,70),"invalid native distance rejected");
+Check(!PlacedBrickTrigger.Reached(true,true,true,false,-1,70),"entry behind actual native original rejected");
+Check(!PlacedBrickTrigger.Reached(true,true,true,false,1,0),"absent physical collisiondepth cannot establish gate");
+Check(PlacedBrickTrigger.CanConsume(true,true,.627,false),"same physicaldepth eligibility activates regardlessshortnativechord");
+Check(!PlacedBrickTrigger.CanConsume(true,false,.627,false),"wrongfixedpart physicaldepth cannotconsume");
+Check(!PlacedBrickTrigger.CanConsume(true,true,0,false),"zeroanglecurve noactivation/bonus");
+Check(!PlacedBrickTrigger.CanConsume(false,true,1,false),"nonthreat cannotconsume");
+Check(!PlacedBrickTrigger.CanConsume(true,true,1,true),"same native block cannotconsume twice");
+var reachedCells=new EraCells();var reachedCell=PlacedEraState.Key(50,836);
+Check(reachedCells.Consume(reachedCell)&&!reachedCells.Consume(reachedCell),"partial/merged/centre native entries share one wholebrick consumedstate");
+Check(reachedCells.Consume(PlacedEraState.Key(50,837)),"another actuallyreached brick retains independentcell");
+Console.WriteLine($"PLACED NATIVE HIT TRIGGER PASS: {checks} checks.");
+
+string EraFixture(string name){using var stream=typeof(ShellProfiles).Assembly.GetManifestResourceStream("EraPreset."+name)!;return new StreamReader(stream).ReadToEnd();}
+var presetBindings=SprocketEraBindings.EraPartBindings.Parse(EraFixture("sprocket.era.bindings.json"));
+Check(presetBindings.Bindings.Count==4,"strict explicit legacyplus3 cassette routes");
+Check(presetBindings.TryGetCassette("kontakt1Cassette",out var k1Binding)&&k1Binding.Kind=="lightEra"&&k1Binding.ResponseId=="kontakt1Cassette","K1 ownexactlight route");
+Check(presetBindings.TryGetCassette("kontakt5Cassette",out var k5Binding)&&k5Binding.Kind=="heavyEra"&&k5Binding.ResponseId=="kontakt5Cassette","K5 ownexactheavy route");
+Check(presetBindings.TryGetCassette("reliktTurretCassette",out var turretBinding)&&turretBinding.MaterialId=="reliktCassette"&&turretBinding.ResponseId=="reliktCassette","turretshape sharesacceptedReliktrecipe");
+Check(!presetBindings.TryGetCassette("reliktTurretMount",out _)&&presetBindings.TryGetMount("reliktTurretMount",out _),"turretmount remainsstrictlypassive");
+Check(!presetBindings.TryGetCassette("reliktCassette_custom",out _)&&!presetBindings.TryGetCassette("ReliktCassette",out _),"no prefixorcasefoldfallback");
+Check(!k1Binding!.MatchesRecipe("kontakt5Cassette","heavyEra",new[]{"kontakt1Cassette"}),"recipeID/kind cannotroute tofirstheavyrecord");
+Check(!k5Binding!.MatchesRecipe("kontakt5Cassette","heavyEra",new[]{"reliktCassette"}),"exactownmaterial route required");
+try{SprocketEraBindings.EraPartBindings.Parse(EraFixture("sprocket.era.bindings.json").Replace("kontakt1Mount","reliktMount"));Check(false,"conflictingroles rejected");}catch(FormatException){Check(true,"conflictingroles rejected");}
+(System.Numerics.Vector3[] Vertices,int[] Triangles) ReadBox(string name)
+{
+ var vertices=new List<System.Numerics.Vector3>();var tris=new List<int>();
+ foreach(var line in EraFixture(name).Split('\n')){var fields=line.Split(' ',StringSplitOptions.RemoveEmptyEntries);if(fields.Length==0)continue;if(fields[0]=="v")vertices.Add(new(float.Parse(fields[1],System.Globalization.CultureInfo.InvariantCulture),float.Parse(fields[2],System.Globalization.CultureInfo.InvariantCulture),float.Parse(fields[3],System.Globalization.CultureInfo.InvariantCulture)));if(fields[0]=="f")foreach(var index in fields.Skip(1))tris.Add(int.Parse(index)-1);}
+ return(vertices.ToArray(),tris.ToArray());
+}
+foreach(var fixturePair in new[]{("kontakt1-flat-collision.obj",30d),("kontakt5-flat-collision.obj",70d),("relikt-turret-30-collision.obj",70d)})
+{
+ var box=ReadBox(fixturePair.Item1);
+ Check(Math.Abs(PlacedPartDepth.Measure(box.Vertices,box.Triangles,System.Numerics.Vector3.One)-fixturePair.Item2)<.001,"actualnativepreset intrinsicdepth "+fixturePair.Item1);
+ Check(Math.Abs(PlacedPartDepth.Measure(box.Vertices,box.Triangles,new(-1,1,1))-fixturePair.Item2)<.001,"mirroring preservesintrinsicdepth "+fixturePair.Item1);
+ var rotated=box.Vertices.Select(v=>System.Numerics.Vector3.Transform(v,System.Numerics.Quaternion.CreateFromYawPitchRoll(.4f,.2f,.1f))).ToArray();
+ Check(Math.Abs(PlacedPartDepth.Measure(rotated,box.Triangles,System.Numerics.Vector3.One)-fixturePair.Item2)<.001,"rotationnot doublecounted inphysicaldepth "+fixturePair.Item1);
+}
+var turretBox=ReadBox("relikt-turret-30-collision.obj");
+Check(turretBox.Vertices.Max(v=>v.Y)-turretBox.Vertices.Min(v=>v.Y)>.19,"rotatedAABBheight190mm isnot70mmcalibration");
+Check(Math.Abs(PlacedPartDepth.Measure(turretBox.Vertices,turretBox.Triangles,new(2,2,2))-140)<.001,"physicalmodelscale affectsactualdepth notnominalpath");
+Check(double.IsNaN(PlacedPartDepth.Measure(turretBox.Vertices,new[]{0,0,0},System.Numerics.Vector3.One)),"degeneratecollision cannotestablishcalibration");
+Check(double.IsNaN(PlacedPartDepth.Measure(turretBox.Vertices,turretBox.Triangles,new(1,0,1))),"collapsedgeometry cannotestablishcalibration");
+using(var responseFixture=typeof(ShellProfiles).Assembly.GetManifestResourceStream("ArmourResponse.Fixture")!)
+{
+ var root=System.Text.Json.Nodes.JsonNode.Parse(new StreamReader(responseFixture).ReadToEnd())!;var oldCount=root["responses"]!.AsArray().Count;
+ root["responses"]!.AsArray().Add(System.Text.Json.Nodes.JsonNode.Parse(EraFixture("kontakt1Cassette-response.json")));root["responses"]!.AsArray().Add(System.Text.Json.Nodes.JsonNode.Parse(EraFixture("kontakt5Cassette-response.json")));
+ var cfg=ArmourResponses.Parse(root.ToJsonString()) with {Enabled=true};var k1=cfg.Responses.Single(r=>r.ResponseId=="kontakt1Cassette");var k5=cfg.Responses.Single(r=>r.ResponseId=="kontakt5Cassette");
+ Check(cfg.Responses.Count==oldCount+2,"new recipes addwithoutreplacing oldplate recipes");
+ Check(k1Binding.MatchesRecipe(k1.ResponseId,k1.Kind,k1.CompatibleMaterialIds)&&k5Binding.MatchesRecipe(k5.ResponseId,k5.Kind,k5.CompatibleMaterialIds),"binding+strictresponse parser exactbothnewroutes");
+ Check(ArmourResponseModel.ReactiveThreat(k1,"heat")&&!ArmourResponseModel.ReactiveThreat(k1,"apfsds"),"K1reactsHEAT only noKE benefit");
+ Check(Math.Abs(ArmourResponseModel.Apply(cfg,k1,new ArmourShotState(),"K1","heat",true,true,30,0,double.NaN,true)-.62)<1e-9,"K1starterHEAT.62");
+ Check(Math.Abs(ArmourResponseModel.Apply(cfg,k5,new ArmourShotState(),"K5","heat",true,true,70,30,double.NaN,true)-.55)<1e-9,"K5starterHEAT.55 distinctRelikt.50");
+ Check(Math.Abs(ArmourResponseModel.Apply(cfg,k5,new ArmourShotState(),"K5","apfsds",true,true,70,30,double.NaN,true)-.90)<1e-9,"K5starterrod.90 distinctRelikt.85");
+ Check(ArmourResponseModel.Apply(cfg,k5,new ArmourShotState(),"K5","heat",true,true,70,30,double.NaN,false)==1,"spentK5cannotreactivate");
+}
+var mixedCells=new EraCells();foreach(int vuid in new[]{100,101,102,103})Check(mixedCells.Consume(PlacedEraState.Key(10,vuid)),"same/sharedrecipe distinctVUID independentwholebrick");
+Check(!mixedCells.Consume(PlacedEraState.Key(10,103)),"turretsharedrecipe retainsoneshotledger");
+Console.WriteLine($"STRICT ERA PRESET PASS: {checks} checks.");
+
+var eraHud=new DamageFeedActivations();
+Check(!eraHud.Record("preview",false,true,"heavyEra","ERA plate"),"preview never emits realERAactivation");
+Check(!eraHud.Record("spent",true,false,"heavyEra","ERA plate"),"spent repeat never emits newERAactivation");
+Check(!eraHud.Record("passive",true,true,"glassTextolite","Composite plate"),"passive firsthit notERAactivation");
+Check(eraHud.Record("plate:spawn1:vuid10:surface2:x0:y0",true,true,"lightEra","My ERA plate"),"actual firstlightERA platecell consumption emitsactivation");
+Check(eraHud.Record("plate:spawn1:vuid10:surface2:x1:y0",true,true,"heavyEra","My ERA plate"),"distinctcell sameplate independentlyreportsfirstconsumption");
+Check(!eraHud.Record("plate:spawn1:vuid10:surface2:x0:y0",true,true,"lightEra","duplicate"),"duplicate exactcell reportdeduplicated");
+eraHud.Budget("absent",500,250);Check(eraHud.Rows.Count()==2,"budgetcalculation cannotinventconsumption");
+eraHud.Budget("plate:spawn1:vuid10:surface2:x0:y0",500,310);Check(eraHud.Rows.First().Contains("500 -> 310 mm"),"knownactualreaction includesobservedbudget");
+eraHud.Budget("plate:spawn1:vuid10:surface2:x1:y0",double.NaN,250);Check(eraHud.Rows.Last()=="ERA activated: My ERA plate","invalidbudgetcannothideactualfirstconsumption");
+var eraPriorityRows=DamageFeedActivations.Compose(eraHud.Rows,Enumerable.Range(0,8).Select(i=>"health"+i),Enumerable.Range(0,12).Select(i=>"plate"+i)).ToArray();
+Check(eraPriorityRows.Length==12&&eraPriorityRows.Take(2).All(r=>r.StartsWith("ERA activated"))&&eraPriorityRows.Count(r=>r.StartsWith("health"))==8,"manylayersandhealthcannottruncate actualERArows");
+Check(eraHud.Record("brick1",true,true,"heavyEra","Relikt brick")&&eraHud.Record("brick2",true,true,"heavyEra","Duplet brick")&&!eraHud.Record("brick3",true,true,"heavyEra","Nizh brick"),"activationrecords bounded4 perimpactincludingplacedandplate");
+Console.WriteLine($"PLATE ERA HUD PASS: {checks} checks.");

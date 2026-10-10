@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "matchMode": "componentId",
+  "bindings": [
+    {"cassetteComponentId":"reliktCassette","mountComponentId":"reliktMount","materialId":"reliktCassette","responseId":"reliktCassette","kind":"heavyEra"},
+    {"cassetteComponentId":"kontakt1Cassette","mountComponentId":"kontakt1Mount","materialId":"kontakt1Cassette","responseId":"kontakt1Cassette","kind":"lightEra"},
+    {"cassetteComponentId":"kontakt5Cassette","mountComponentId":"kontakt5Mount","materialId":"kontakt5Cassette","responseId":"kontakt5Cassette","kind":"heavyEra"},
+    {"cassetteComponentId":"reliktTurretCassette","mountComponentId":"reliktTurretMount","materialId":"reliktCassette","responseId":"reliktCassette","kind":"heavyEra"}
+  ]
+}

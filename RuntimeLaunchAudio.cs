@@ -75,8 +75,8 @@ internal static class RuntimeLaunchAudio
         if(!Enabled)return;
         try
         {
-            var behavior=RuntimeShellSelection.SelectedProfile(__instance)?.Behavior;
-            if(ShellBalance.IsAtgm(behavior))firingType=behavior;
+            var profile=RuntimeShellSelection.SelectedProfile(__instance);
+            if(profile!=null&&ShellBalance.Powered(profile))firingType=ShellBalance.Carrier(profile)=="gunLaunch"?"atgm_gun":"atgm";
         }
         catch(Exception ex){Warn("fire context",ex);}
     }

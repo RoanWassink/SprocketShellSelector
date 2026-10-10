@@ -5,14 +5,34 @@ using HarmonyLib;
 using Il2CppInterop.Runtime;
 using UnityEngine.Events;
 namespace SprocketShellSelector;
-[BepInPlugin("sprocket.shellselector", "Sprocket Shell Selector", "0.12.5")]
-[BepInDependency("sprocket.materialselector", BepInDependency.DependencyFlags.SoftDependency)]
+[BepInPlugin("sprocket.shellselector", "Sprocket Shell Selector", "0.13.0")]
+[BepInDependency("sprocket.jsoneditor", ">=0.1.0 <0.2.0")]
 public sealed class Plugin : BasePlugin
 {
+    public override bool Unload(){RuntimeWire.Clear();RuntimeDamageFeed.Clear();return base.Unload();}
     internal static ManualLogSource ModLog = null!;
+    public static void RefreshArmourResponses()
+    {
+        var enabled=RuntimeArmourResponses.Configure();
+        const string owner="sprocket.shellselector.armourresponses";
+        if(enabled&&!Harmony.HasAnyPatches(owner))new Harmony(owner).PatchAll(typeof(RuntimeArmourResponses));
+    }
     public override void Load()
     {
         ModLog = Log;
+        try
+        {
+            RuntimeDamageFeed.Configure(Config);
+            new Harmony("sprocket.shellselector.damagefeed").PatchAll(typeof(RuntimeDamageFeed));
+            Il2CppInterop.Runtime.Injection.ClassInjector.RegisterTypeInIl2Cpp<DamageFeedBehaviour>();
+            AddComponent<DamageFeedBehaviour>();
+            RuntimeDamageFeed.Ready=true;
+            try{new Harmony("sprocket.shellselector.damagefeed.health").PatchAll(typeof(RuntimeDamageHealth));}
+            catch(Exception healthError){new Harmony("sprocket.shellselector.damagefeed.health").UnpatchSelf();Log.LogWarning("[Damage feed] Native health reporting unavailable; penetration HUD retained: "+healthError.Message);}
+            Log.LogInfo("[Damage feed] Optional Play HUD hooks loaded; default off, cannon panel toggle.");
+        }
+        catch(Exception ex){RuntimeDamageFeed.Ready=false;new Harmony("sprocket.shellselector.damagefeed.health").UnpatchSelf();new Harmony("sprocket.shellselector.damagefeed").UnpatchSelf();Log.LogWarning("[Damage feed] Optional feature unavailable: "+ex.Message);}
+
         var harmony = new Harmony(PluginConfigMigration.PluginId);
         try
         {
@@ -34,7 +54,7 @@ public sealed class Plugin : BasePlugin
             Log.LogError($"Shell selector disabled: {ex}");
             return;
         }
-        Log.LogInfo("Sprocket Shell Selector v0.12.5 loaded.");
+        Log.LogInfo("Sprocket Shell Selector v0.13.0 loaded.");
         var armourHarmony=new Harmony("sprocket.shellselector.armourresponses");
         try{if(RuntimeArmourResponses.Configure())armourHarmony.PatchAll(typeof(RuntimeArmourResponses));}
         catch(Exception ex){armourHarmony.UnpatchSelf();Log.LogWarning("[Armour response] Optional adapter disabled: "+ex.Message);}
@@ -111,3 +131,12 @@ internal static class Ui
     internal static UnityAction<int> IntCallback(Action<int> action) => DelegateSupport.ConvertDelegate<UnityAction<int>>(action)!;
     internal static Il2CppSystem.Action<bool> BoolCallback(Action<bool> action) => DelegateSupport.ConvertDelegate<Il2CppSystem.Action<bool>>(action)!;
 }
+
+
+
+
+
+
+
+
+

@@ -9,6 +9,20 @@ internal static class ShellBalance
         return calibreMm/100;
     }
     internal static bool IsAtgm(string? behavior) => behavior is "atgm" or "atgm_gun";
+    internal static bool FlightEnabled(ShellProfile? p)=>p!=null&&(p.Flight is {} f?f.Propulsion=="rocket"||f.Guidance!="none":IsAtgm(p.Behavior));
+    internal static bool Powered(ShellProfile p)=>p.Flight?.Propulsion=="rocket"||(p.Flight==null&&IsAtgm(p.Behavior));
+    internal static string Carrier(ShellProfile p)=>p.Flight?.Carrier??(p.Behavior=="atgm_gun"?"gunLaunch":p.Behavior=="atgm"?"launcher":p.Behavior=="apfsds"?"sabot":"fullBore");
+    internal static IEnumerable<string> RequiredTechnologyIds(ShellProfile p)
+    {
+        if(p.Flight==null)yield return "shellSelector_"+p.Behavior;
+        else
+        {
+            yield return "shellSelector_"+ImpactBehavior(p);
+            if(Carrier(p)=="sabot")yield return "shellSelector_apfsds";
+            if(FlightEnabled(p)||Carrier(p) is "launcher" or "gunLaunch")yield return Carrier(p)=="gunLaunch"?"shellSelector_atgm_gun":"shellSelector_atgm";
+        }
+        foreach(var id in p.NativeTechnologyIds??Array.Empty<string>())yield return id;
+    }
     internal static string ImpactBehavior(ShellProfile p) => IsAtgm(p.Behavior) ? "heat" : p.Behavior;
     internal static double ChemicalPenetration(ShellProfile p,double calibreMm) => Math.Clamp(p.ChemicalPenetrationMm*Ratio(calibreMm)*100/p.ReferenceCalibreMm,1,2000);
     internal static bool SuppressPayloadBurst(string behavior,bool original,bool alreadyBurst) => alreadyBurst && (behavior!="heat" || !original);
@@ -37,7 +51,7 @@ internal static class ShellBalance
     internal static DartBallistics Calculate(double calibreMm,double vanillaVelocity,ushort vanillaK,ShellProfile p)
     {
         var result=ShellBallistics.Calculate(calibreMm,vanillaVelocity,vanillaK,BallisticSettings(p));
-        return IsAtgm(p.Behavior) && p.Atgm is {} flight ? result with {Velocity=(float)AtgmGuidance.InitialSpeed(flight,vanillaVelocity)} : result;
+        return Powered(p) && p.Atgm is {} flight ? result with {Velocity=(float)AtgmGuidance.InitialSpeed(flight,vanillaVelocity)} : result;
     }
     internal static double FragmentSpeed(string behavior,double calibreMm) => (behavior=="heat"?1100:behavior=="hesh"?700:900)*Math.Clamp(Math.Pow(Ratio(calibreMm),.15),.7,1.3);
     // Payload energy is available even when the native shell barely perforates.

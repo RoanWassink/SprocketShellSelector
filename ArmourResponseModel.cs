@@ -16,6 +16,7 @@ internal sealed class EraCells
     internal bool Consume(EraCell cell){lock(spent)return spent.Add(cell);}
     internal void RemoveSpawn(long spawn){lock(spent)spent.RemoveWhere(c=>c.Spawn==spawn);}
     internal void RemoveElement(long spawn,int element){lock(spent)spent.RemoveWhere(c=>c.Spawn==spawn&&c.Element==element);}
+    internal bool Contains(EraCell cell){lock(spent)return spent.Contains(cell);}
     internal int Count {get{lock(spent)return spent.Count;}}
 }
 internal static class ArmourResponseModel

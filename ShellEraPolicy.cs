@@ -1,5 +1,5 @@
 namespace SprocketShellSelector;
-internal sealed record ShellEraContext(ShellNativeDate Date,string[] Names,ShellNativeDate[] Starts,int Index,IReadOnlySet<string> AvailableBehaviors,double? HeatFactor=null);
+internal sealed record ShellEraContext(ShellNativeDate Date,string[] Names,ShellNativeDate[] Starts,int Index,IReadOnlySet<string> AvailableBehaviors,double? HeatFactor=null,IReadOnlySet<string>? AvailableTechnologies=null);
 internal static class ShellEraPolicy
 {
     internal static bool Valid(ShellEraContext? c)
@@ -11,7 +11,9 @@ internal static class ShellEraPolicy
     private static bool Matches(string requested,string native)=>string.Equals(requested,native,StringComparison.OrdinalIgnoreCase)||(string.Equals(requested,"ww1",StringComparison.OrdinalIgnoreCase)&&string.Equals(native,"WWI",StringComparison.OrdinalIgnoreCase));
     internal static bool Allowed(ShellProfile p,ShellEraContext? c)
     {
-        if(!Valid(c)||!c!.AvailableBehaviors.Contains(p.Behavior))return false;
+        if(!Valid(c))return false;
+        var technologies=c!.AvailableTechnologies??c.AvailableBehaviors.Select(b=>"shellSelector_"+b).ToHashSet(StringComparer.Ordinal);
+        if(!ShellBalance.RequiredTechnologyIds(p).All(technologies.Contains))return false;
         if(p.MinimumEra==null)return true;
         var minimum=Array.FindIndex(c.Names,name=>Matches(p.MinimumEra,name));
         return minimum>=0&&c.Index>=minimum;

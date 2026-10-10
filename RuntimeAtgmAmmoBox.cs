@@ -246,7 +246,7 @@ internal static class RuntimeAtgmAmmoBox
                 var referenceReport=string.Join("; ",allCannons.Select(c=>$"id={c.VUID.Value} part={c.VehicleObject.GUID} profile={RuntimeShellSelection.CannonProfile(c)?.Id??"unavailable"} guidance={RuntimeShellSelection.CannonProfile(c)?.Atgm?.GuidanceMode??"none"} listed={RuntimeAtgmLauncher.IsLauncher(c)}"));
                 if(!referenceReports.TryGetValue(rack.Pointer,out var previous)||previous!=referenceReport)
                 {referenceReports[rack.Pointer]=referenceReport;Plugin.ModLog.LogInfo($"[ATGM ammo box] REFERENCES box={rack.VUID.Value} selected={state.Reference}: {referenceReport}");}
-                foreach(var c in allCannons.Where(c=>!RuntimeAtgmLauncher.IsLauncher(c)&&ShellBalance.IsAtgm(RuntimeShellSelection.CannonProfile(c)?.Behavior)))
+                foreach(var c in allCannons.Where(c=>!RuntimeAtgmLauncher.IsLauncher(c)&&ShellBalance.FlightEnabled(RuntimeShellSelection.CannonProfile(c))))
                     ui.InfoField($"Cannon {c.VUID.Value} ({RuntimeShellSelection.CannonProfile(c)?.Label}) is not a dedicated ATGM launcher part, so it is not listed as an automatic-box reference.",2);
                 ui.InfoField($"Profile: {(state.Profile==""?"place a matching launcher nearby":state.Profile)} | capacity {rack.Capacity} | stock {(rack.behaviour==null?"native design fill":rack.behaviour.AmountStored.ToString())}",2);
                 foreach(var c in cannons.Where(c=>Distance(rack,c)<=AtgmAmmoBoxRules.Reach))ui.InfoField($"Launcher {c.VUID.Value}: {Distance(rack,c):0.00} m | {AtgmAmmoBoxRules.Seconds(c.Blueprint.Caliber,c.Blueprint.PropellantLength):0.0} s cycle | {(Eligible(state,c)?"compatible":"profile/ammunition/installation mismatch")}",2);

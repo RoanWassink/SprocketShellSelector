@@ -1,0 +1,45 @@
+using System.Numerics;
+using SprocketShellSelector;
+internal static class WireSettlingChecks { internal static void Run(Action<bool,string> Check) {
+var initial=new[]{new Vector3(0,10,0),new Vector3(5,12,0),new Vector3(10,15,0)};
+WireSettlingCable New()=>new(initial,16,20);
+var active=New();active.Step(.1,0,null);Check(active.Points[0]==initial[0]&&active.Points[2]==initial[2],"active cable remains anchored and immutable");
+active.WholeCableDetach(0);active.Step(.1,.1,null, damping:0);
+Check(active.Points[0].Y<initial[0].Y && active.Points[2].Y<initial[2].Y,"whole cable including old cannon anchor and tip falls");
+Check(Math.Abs(active.Points[0].Y-(10-.04905))<1e-5,"gravity integrates physical displacement");
+Check(active.PaidOutSnapshot==16,"gravity never replenishes or expands payout budget");
+var a=New();var b=New();a.WholeCableDetach(0);b.WholeCableDetach(0);
+for(int i=0;i<60;i++)a.Step(1.0/60,(i+1)/60.0,null);
+for(int i=0;i<10;i++)b.Step(.1,(i+1)*.1,null);
+Check(Vector3.Distance(a.Points[1],b.Points[1])<.0001,"damped freefall timestep stability");
+var capped=New();var quarter=New();capped.WholeCableDetach(0);quarter.WholeCableDetach(0);
+capped.Step(100,.1,null);quarter.Step(.25,.1,null);
+Check(capped.Points[0]==quarter.Points[0],"huge dt capped to bounded work");
+var floor=New();floor.WholeCableDetach(0);int queries=0;
+for(int i=0;i<100;i++)floor.Step(.1,(i+1)*.1,p=>{queries++;return new(2,Vector3.UnitY);});
+Check(floor.Points.All(p=>Math.Abs(p.Y-2.012f)<1e-5),"all cable vertices settle on actual queried floor");
+Check(queries==300,"one ground query per vertex per step independent of substeps");
+var unknown=New();unknown.WholeCableDetach(0);for(int i=0;i<100;i++)unknown.Step(.1,(i+1)*.1,null);
+Check(unknown.Points[0].Y<0,"unknown terrain does not fake floor at zero");
+var invalid=New();invalid.WholeCableDetach(0);invalid.Step(double.NaN,.1,null);Check(invalid.Points[0]==initial[0],"invalid timestep ignored");
+invalid.Step(.1,.2,p=>new(float.NaN,Vector3.UnitY));Check(invalid.Points[0].Y<10,"invalid ground height cannot poison vertices");
+invalid.Step(.1,.3,p=>throw new Exception());Check(float.IsFinite(invalid.Points[0].Y),"ground adapter failure stays bounded finite");
+var ttl=New();ttl.WholeCableDetach(3);ttl.WholeCableDetach(8);Check(!ttl.Expired(22.9)&&ttl.Expired(23),"duplicate detach cannot extend TTL");
+var before=ttl.Points[0];ttl.Step(.1,23,null);Check(ttl.Points[0]==before,"expired cable stops work");
+initial[0]=new(100,100,100);Check(ttl.Points[0].X==0,"detached geometry copied from mutable input");
+bool rejected=false;try{_=new WireSettlingCable(new Vector3[513],0,20);}catch(ArgumentOutOfRangeException){rejected=true;}Check(rejected,"point budget enforced");
+var duplicate=New();duplicate.WholeCableDetach(0);duplicate.Step(.1,.1,null);var once=duplicate.Points[0];duplicate.Step(.1,.1,null);Check(duplicate.Points[0]==once,"multiple register callbacks at same clock cannot double gravity");
+var under=new WireSettlingCable(new[]{new Vector3(0,-.1f,0),new Vector3(1,-.1f,0)},1,20);under.WholeCableDetach(0);under.Step(.1,.1,p=>new(0,Vector3.UnitY));Check(under.Points.All(p=>Math.Abs(p.Y-.012f)<1e-5),"small existing ground penetration corrected");
+var mixed=new WireSettlingCable(new[]{new Vector3(0,.02f,0),new Vector3(1,10,0)},10,20);mixed.WholeCableDetach(0);mixed.Step(.1,.1,p=>new(0,Vector3.UnitY));Check(mixed.Points[0].Y==.012f && mixed.Points[1].Y>9,"grounded and airborne points evolve independently");
+var slope=new WireSettlingCable(new[]{new Vector3(0,1,0),new Vector3(1,1,0)},1,20);slope.WholeCableDetach(0);
+for(int i=0;i<100;i++)slope.Step(.1,(i+1)*.1,p=>new(.2f*p.Candidate.X,Vector3.Normalize(new(-.2f,1,0))));
+Check(slope.Points.All(p=>Math.Abs(p.Y-(.2f*p.X+.012f))<.001f),"sloped queried ground settles without fictive horizontal plane");
+var rest=floor.Points[0];floor.Step(.1,10.1,p=>new(2,Vector3.UnitY));Check(Vector3.Distance(floor.Points[0],rest)<1e-5,"resting ground contact does not jitter");
+var late=new WireSettlingCable(new[]{new Vector3(0,1,0),new Vector3(1,1,0)},1,20);late.WholeCableDetach(0);
+for(int i=0;i<30;i++)late.Step(.1,(i+1)*.1,null);
+Check(late.Points[0].Y<0,"pending query can leave floor unknown temporarily");
+late.Step(.1,3.1,p=>new(0,Vector3.UnitY));Check(late.Points.All(p=>p.Y==.012f),"late original-column ground cache corrects already fallen vertices");
+Check(slope.Points[0].X==0 && slope.Points[1].X==1,"settling preserves original cached x/z columns");
+var future=New();future.WholeCableDetach(5);future.Step(.1,4,null);Check(future.Points[0]==future.OriginalDetachPoints[0],"no settling before actual detach timestamp");
+
+} }

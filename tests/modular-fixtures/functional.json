@@ -1,0 +1,346 @@
+{
+  "schemaVersion": 1,
+  "purpose": "managed-contract-parity",
+  "cases": [
+    {
+      "case": "guided_rocket_long_rod",
+      "modules": {
+        "tail": "guided",
+        "propulsion": "rocket",
+        "body": "longRod",
+        "effect": "kinetic",
+        "carrier": "sabot"
+      },
+      "modifiers": {
+        "id": "guided_rocket_long_rod",
+        "label": "Player name stays",
+        "penetratorDiameterFactor": 0.22,
+        "penetratorLengthInCalibres": 6,
+        "penetratorDensity": 17500,
+        "velocityEfficiency": 0.85,
+        "velocityMultiplier": 1,
+        "maximumVelocityFactor": 2.2,
+        "maximumVelocity": 2200,
+        "penetrationQuality": 0.45,
+        "fragmentDamageMultiplier": 0.5,
+        "chemicalPenetrationMm": 600,
+        "nativeExplosivePower": 40,
+        "flightSpeed": 200,
+        "launchSpeed": 50,
+        "maximumFlightTime": 25,
+        "guidanceDelay": 0.25,
+        "acceleration": 150,
+        "motorDelay": 0.12,
+        "motorBurnTime": 4
+      },
+      "legacy": null,
+      "expected": {
+        "state": "proxy-playable",
+        "impactBehavior": "apfsds",
+        "runtimeProfile": {
+          "id": "guided_rocket_long_rod",
+          "label": "Player name stays",
+          "penetratorDiameterFactor": 0.22,
+          "penetratorLengthInCalibres": 6,
+          "penetratorDensity": 17500,
+          "velocityEfficiency": 0.85,
+          "velocityMultiplier": 1,
+          "maximumVelocityFactor": 2.2,
+          "maximumVelocity": 2200,
+          "penetrationQuality": 0.45,
+          "fragmentDamageMultiplier": 0.5,
+          "chemicalPenetrationMm": 600,
+          "nativeExplosivePower": 40,
+          "flightSpeed": 200,
+          "launchSpeed": 50,
+          "maximumFlightTime": 25,
+          "guidanceDelay": 0.25,
+          "acceleration": 150,
+          "motorDelay": 0.12,
+          "motorBurnTime": 4,
+          "behavior": "apfsds",
+          "flight": {
+            "propulsion": "rocket",
+            "guidance": "sight",
+            "carrier": "sabot"
+          },
+          "guidanceMode": "sight"
+        },
+        "requiredTechnologyIds": [
+          "shellSelector_apfsds",
+          "shellSelector_atgm"
+        ]
+      }
+    },
+    {
+      "case": "guided_ballistic_ap",
+      "modules": {
+        "tail": "guided",
+        "propulsion": "ballistic",
+        "body": "fullBore",
+        "effect": "kinetic",
+        "carrier": "fullBore"
+      },
+      "modifiers": {
+        "id": "guided_ballistic_ap",
+        "label": "Player name stays",
+        "penetratorDiameterFactor": 0.22,
+        "penetratorLengthInCalibres": 6,
+        "penetratorDensity": 17500,
+        "velocityEfficiency": 0.85,
+        "velocityMultiplier": 1,
+        "maximumVelocityFactor": 2.2,
+        "maximumVelocity": 2200,
+        "penetrationQuality": 0.45,
+        "fragmentDamageMultiplier": 0.5,
+        "chemicalPenetrationMm": 600,
+        "nativeExplosivePower": 40,
+        "flightSpeed": 200,
+        "launchSpeed": 50,
+        "maximumFlightTime": 25,
+        "guidanceDelay": 0.25,
+        "acceleration": 150,
+        "motorDelay": 0.12,
+        "motorBurnTime": 4
+      },
+      "legacy": null,
+      "expected": {
+        "state": "proxy-playable",
+        "impactBehavior": "ap",
+        "runtimeProfile": {
+          "id": "guided_ballistic_ap",
+          "label": "Player name stays",
+          "penetratorDiameterFactor": 0.22,
+          "penetratorLengthInCalibres": 6,
+          "penetratorDensity": 17500,
+          "velocityEfficiency": 0.85,
+          "velocityMultiplier": 1,
+          "maximumVelocityFactor": 2.2,
+          "maximumVelocity": 2200,
+          "penetrationQuality": 0.45,
+          "fragmentDamageMultiplier": 0.5,
+          "chemicalPenetrationMm": 600,
+          "nativeExplosivePower": 40,
+          "flightSpeed": 200,
+          "launchSpeed": 50,
+          "maximumFlightTime": 25,
+          "guidanceDelay": 0.25,
+          "acceleration": 150,
+          "motorDelay": 0.12,
+          "motorBurnTime": 4,
+          "behavior": "ap",
+          "flight": {
+            "propulsion": "ballistic",
+            "guidance": "sight",
+            "carrier": "fullBore"
+          },
+          "guidanceMode": "sight"
+        },
+        "requiredTechnologyIds": [
+          "shellSelector_ap",
+          "shellSelector_atgm"
+        ]
+      }
+    },
+    {
+      "case": "unguided_rocket_he",
+      "modules": {
+        "tail": "none",
+        "propulsion": "rocket",
+        "body": "fullBore",
+        "effect": "blast",
+        "carrier": "launcher"
+      },
+      "modifiers": {
+        "id": "unguided_rocket_he",
+        "label": "Player name stays",
+        "penetratorDiameterFactor": 0.22,
+        "penetratorLengthInCalibres": 6,
+        "penetratorDensity": 17500,
+        "velocityEfficiency": 0.85,
+        "velocityMultiplier": 1,
+        "maximumVelocityFactor": 2.2,
+        "maximumVelocity": 2200,
+        "penetrationQuality": 0.45,
+        "fragmentDamageMultiplier": 0.5,
+        "chemicalPenetrationMm": 600,
+        "nativeExplosivePower": 40,
+        "flightSpeed": 200,
+        "launchSpeed": 50,
+        "maximumFlightTime": 25,
+        "guidanceDelay": 0.25,
+        "acceleration": 150,
+        "motorDelay": 0.12,
+        "motorBurnTime": 4
+      },
+      "legacy": null,
+      "expected": {
+        "state": "proxy-playable",
+        "impactBehavior": "he",
+        "runtimeProfile": {
+          "id": "unguided_rocket_he",
+          "label": "Player name stays",
+          "penetratorDiameterFactor": 0.22,
+          "penetratorLengthInCalibres": 6,
+          "penetratorDensity": 17500,
+          "velocityEfficiency": 0.85,
+          "velocityMultiplier": 1,
+          "maximumVelocityFactor": 2.2,
+          "maximumVelocity": 2200,
+          "penetrationQuality": 0.45,
+          "fragmentDamageMultiplier": 0.5,
+          "chemicalPenetrationMm": 600,
+          "nativeExplosivePower": 40,
+          "flightSpeed": 200,
+          "launchSpeed": 50,
+          "maximumFlightTime": 25,
+          "guidanceDelay": 0.25,
+          "acceleration": 150,
+          "motorDelay": 0.12,
+          "motorBurnTime": 4,
+          "behavior": "he",
+          "flight": {
+            "propulsion": "rocket",
+            "guidance": "none",
+            "carrier": "launcher"
+          },
+          "guidanceMode": "none"
+        },
+        "requiredTechnologyIds": [
+          "shellSelector_he",
+          "shellSelector_atgm"
+        ]
+      }
+    },
+    {
+      "case": "long_rod_blast_sabot",
+      "modules": {
+        "tail": "fins",
+        "propulsion": "ballistic",
+        "body": "longRod",
+        "effect": "blast",
+        "carrier": "sabot"
+      },
+      "modifiers": {
+        "id": "long_rod_blast_sabot",
+        "label": "Player name stays",
+        "penetratorDiameterFactor": 0.22,
+        "penetratorLengthInCalibres": 6,
+        "penetratorDensity": 17500,
+        "velocityEfficiency": 0.85,
+        "velocityMultiplier": 1,
+        "maximumVelocityFactor": 2.2,
+        "maximumVelocity": 2200,
+        "penetrationQuality": 0.45,
+        "fragmentDamageMultiplier": 0.5,
+        "chemicalPenetrationMm": 600,
+        "nativeExplosivePower": 40,
+        "flightSpeed": 200,
+        "launchSpeed": 50,
+        "maximumFlightTime": 25,
+        "guidanceDelay": 0.25,
+        "acceleration": 150,
+        "motorDelay": 0.12,
+        "motorBurnTime": 4
+      },
+      "legacy": null,
+      "expected": {
+        "state": "proxy-playable",
+        "impactBehavior": "he",
+        "runtimeProfile": {
+          "id": "long_rod_blast_sabot",
+          "label": "Player name stays",
+          "penetratorDiameterFactor": 0.22,
+          "penetratorLengthInCalibres": 6,
+          "penetratorDensity": 17500,
+          "velocityEfficiency": 0.85,
+          "velocityMultiplier": 1,
+          "maximumVelocityFactor": 2.2,
+          "maximumVelocity": 2200,
+          "penetrationQuality": 0.45,
+          "fragmentDamageMultiplier": 0.5,
+          "chemicalPenetrationMm": 600,
+          "nativeExplosivePower": 40,
+          "flightSpeed": 200,
+          "launchSpeed": 50,
+          "maximumFlightTime": 25,
+          "guidanceDelay": 0.25,
+          "acceleration": 150,
+          "motorDelay": 0.12,
+          "motorBurnTime": 4,
+          "behavior": "he",
+          "flight": {
+            "propulsion": "ballistic",
+            "guidance": "none",
+            "carrier": "sabot"
+          },
+          "guidanceMode": "none"
+        },
+        "requiredTechnologyIds": [
+          "shellSelector_he",
+          "shellSelector_apfsds"
+        ]
+      }
+    },
+    {
+      "case": "unchanged_legacy_atgm",
+      "modules": null,
+      "modifiers": {},
+      "legacy": {
+        "id": "legacy_atgm",
+        "label": "Player name stays",
+        "penetratorDiameterFactor": 0.22,
+        "penetratorLengthInCalibres": 6,
+        "penetratorDensity": 17500,
+        "velocityEfficiency": 0.85,
+        "velocityMultiplier": 1,
+        "maximumVelocityFactor": 2.2,
+        "maximumVelocity": 2200,
+        "penetrationQuality": 0.45,
+        "fragmentDamageMultiplier": 0.5,
+        "chemicalPenetrationMm": 600,
+        "nativeExplosivePower": 40,
+        "flightSpeed": 200,
+        "launchSpeed": 50,
+        "maximumFlightTime": 25,
+        "guidanceDelay": 0.25,
+        "acceleration": 150,
+        "motorDelay": 0.12,
+        "motorBurnTime": 4,
+        "behavior": "atgm",
+        "guidanceMode": "sight"
+      },
+      "expected": {
+        "state": "legacy",
+        "impactBehavior": "heat",
+        "runtimeProfile": {
+          "id": "legacy_atgm",
+          "label": "Player name stays",
+          "penetratorDiameterFactor": 0.22,
+          "penetratorLengthInCalibres": 6,
+          "penetratorDensity": 17500,
+          "velocityEfficiency": 0.85,
+          "velocityMultiplier": 1,
+          "maximumVelocityFactor": 2.2,
+          "maximumVelocity": 2200,
+          "penetrationQuality": 0.45,
+          "fragmentDamageMultiplier": 0.5,
+          "chemicalPenetrationMm": 600,
+          "nativeExplosivePower": 40,
+          "flightSpeed": 200,
+          "launchSpeed": 50,
+          "maximumFlightTime": 25,
+          "guidanceDelay": 0.25,
+          "acceleration": 150,
+          "motorDelay": 0.12,
+          "motorBurnTime": 4,
+          "behavior": "atgm",
+          "guidanceMode": "sight"
+        },
+        "requiredTechnologyIds": [
+          "shellSelector_atgm"
+        ]
+      }
+    }
+  ]
+}

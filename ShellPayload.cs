@@ -16,7 +16,13 @@ internal static class ShellPayload
   Range("airGapLossPerCalibre",p.AirGapLossPerCalibre,0,100);
   Range("referenceCalibreMm",p.ReferenceCalibreMm,10,500);
   AtgmGuidance.Validate(p);
-  if(ShellBalance.IsAtgm(p.Behavior) && p.Atgm is null)throw new FormatException($"Profile '{p.Id}': atgm requires flight settings.");
+  p.Wire?.Validate(p.Id);
+  if(p.Flight is {} f)
+  {
+   if(f.Propulsion is not ("ballistic" or "rocket")||f.Guidance is not ("none" or "sight" or "keyboard")||f.Carrier is not ("fullBore" or "sabot" or "launcher" or "gunLaunch"))throw new FormatException($"Profile '{p.Id}': invalid flight module.");
+  }
+  if(p.NativeTechnologyIds is {} technologies && (technologies.Count>32||technologies.Distinct(StringComparer.Ordinal).Count()!=technologies.Count||technologies.Any(t=>string.IsNullOrWhiteSpace(t)||t.Length>128||t.Any(char.IsControl))))throw new FormatException($"Profile '{p.Id}': invalid nativeTechnologyIds.");
+  if(ShellBalance.FlightEnabled(p) && p.Atgm is null)throw new FormatException($"Profile '{p.Id}': flight module requires flight settings.");
   if(p.Behavior is "heat" or "hesh" or "atgm" or "atgm_gun" && p.ChemicalPenetrationMm<=0)
    throw new FormatException($"Profile '{p.Id}': chemicalPenetrationMm is 0; expected >0–2000 for {p.Behavior}.");
   if(p.Behavior=="he" && p.NativeExplosivePower<=0)

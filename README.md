@@ -2,10 +2,20 @@
 
 Custom ammunition and guided missiles for Sprocket: **APFSDS long/short rod, APHE, HE, HEAT, HESH, SACLOS and MCLOS ATGM**, plus a dedicated launcher and finite ammunition box.
 
-**[Download v0.12.5](https://github.com/RoanWassink/SprocketShellSelector/releases/tag/v0.12.5)**. Download the installation ZIP from the release; GitHub's **Code > Download ZIP** contains source code.
+**[Download v0.13.0](https://github.com/RoanWassink/SprocketShellSelector/releases/tag/v0.13.0)**. Download the installation ZIP from the release; GitHub's **Code > Download ZIP** contains source code.
+
+## New in v0.13.0
+
+- Design shell modules in the shared in-game JSON editor; Save refreshes valid compiled profiles. Existing custom profiles are preserved.
+- Optional TOW wire-guidance example with cable gravity and ground settling.
+- Optional damage feed for penetration, native damage events and ERA activation.
+- Placed ERA compatibility with matching Material Selector parts and response catalogues.
+
+See [the in-game editor and damage-feed guide](SHELL-EDITOR.md) for module choices, Save/Import, files and recovery.
 
 ## Requirements
 
+- Included **Sprocket JSON Editor 0.1.0** is required.
 - Sprocket **0.2.55.5**, Unity **6000.3.21f1**.
 - A working Sprocket Mod Loader / **BepInEx 6 IL2CPP** setup with its .NET 6 runtime, as used by Hans21223's Sprocket Quality of Life.
 - Quality of Life and Material Selector are optional. Armour response recipes require the matching Material Selector definitions and `sprocket.armour.responses.json` catalogue.
@@ -69,7 +79,7 @@ For dedicated launcher optical initialization, `OpticalSightDirection = true` en
 - Launcher and gun-launched missiles have separate embedded launch recordings and optional WAV overrides. Non-ATGM shots retain native cannon audio.
 - ATGM profiles have motor-linked exhaust flame, light and smoke, starting at motor ignition. Other shell types retain their native visuals.
 
-No onboard seeker, target lock, fire-and-forget, top attack, missile camera, physical wire or tandem warhead is implemented. Missile impact uses the HEAT model; its explosion effect adds no separate HE blast damage.
+An optional wire guidance example includes a visible cable with gravity and terrain settling. No onboard seeker, target lock, fire-and-forget, top attack, missile camera or tandem warhead is implemented. Missile impact uses the HEAT model; its explosion effect adds no separate HE blast damage.
 
 See [ATGM controls and settings](ATGM.md).
 
