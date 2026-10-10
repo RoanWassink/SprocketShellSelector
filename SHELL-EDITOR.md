@@ -22,6 +22,6 @@ The optional `examples/tow-basic-wire.profile-fragment.json` is **one profile**,
 
 ## Damage feed
 
-Enable the damage feed from the cannon panel or `[Damage feed] Enabled = true` in `BepInEx/config/sprocket.shellselector.cfg`. `Corner` accepts `right` (default) or `left`. `Console debug` is false by default. It reports detected penetration, remaining penetration, ERA activation and crew/component events in Play. It may not account for every secondary fragment or damage event.
+Enable the damage feed from the cannon panel or `[Damage feed] Enabled = true` in `BepInEx/config/sprocket.shellselector.cfg`. `Corner` accepts `right` (default) or `left`. `Console debug` is false by default. It reports detected penetration, remaining penetration, ERA activation and direct crew/component damage from projectiles and spall in Play. Repeated component messages within one shot are combined; ongoing fire damage is excluded. It may not account for every secondary fragment or damage event.
 
 [Support my ChatGPT budget and help me reverse engineer Sprocket to make more mods.](https://www.paypal.com/donate/?hosted_button_id=7PE3SDBETXFQ6)

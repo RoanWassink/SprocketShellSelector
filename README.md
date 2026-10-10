@@ -2,13 +2,18 @@
 
 Custom ammunition and guided missiles for Sprocket: **APFSDS long/short rod, APHE, HE, HEAT, HESH, SACLOS and MCLOS ATGM**, plus a dedicated launcher and finite ammunition box.
 
-**[Download v0.13.0](https://github.com/RoanWassink/SprocketShellSelector/releases/tag/v0.13.0)**. Download the installation ZIP from the release; GitHub's **Code > Download ZIP** contains source code.
+**[Download v0.13.2](https://github.com/RoanWassink/SprocketShellSelector/releases/tag/v0.13.2)**. Download the installation ZIP from the release; GitHub's **Code > Download ZIP** contains source code.
 
-## New in v0.13.0
+## New in v0.13.2
+
+- **Stronger full-calibre recoil:** HE, APHE and other non-rocket full-bore profiles now retain at least the native recoil of the same cannon and propellant charge. Penetration and damage balance are unchanged. APFSDS and ATGM recoil remain unchanged.
+- **Cleaner damage feed:** crew and component messages report direct projectile and spall damage. Repeated messages from ongoing fires are excluded, and repeated hits on the same component within one shot are combined. Penetration and ERA activation remain visible.
+
+## Editors, missiles and armour integration
 
 - Design shell modules in the shared in-game JSON editor; Save refreshes valid compiled profiles. Existing custom profiles are preserved.
 - Optional TOW wire-guidance example with cable gravity and ground settling.
-- Optional damage feed for penetration, native damage events and ERA activation.
+- Optional damage feed for penetration, direct shot damage and ERA activation.
 - Placed ERA compatibility with matching Material Selector parts and response catalogues.
 
 See [the in-game editor and damage-feed guide](SHELL-EDITOR.md) for module choices, Save/Import, files and recovery.

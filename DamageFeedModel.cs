@@ -7,6 +7,7 @@ internal static class DamageFeedTruth
     internal static double? Remaining(IReadOnlyList<double> continuationBudgets)=>continuationBudgets.Count==1&&double.IsFinite(continuationBudgets[0])&&continuationBudgets[0]>=0?continuationBudgets[0]:null;
     internal static string Label(string? text,string fallback)
     {var clean=new string((text??"").Where(c=>!char.IsControl(c)&&c!='<'&&c!='>').ToArray()).Trim();return clean.Length==0?fallback:clean.Length>32?clean[..32]:clean;}
+    internal static bool DirectDamage(bool shot,bool nativeDamageCall,double delta,bool targetRegister=true)=>shot&&nativeDamageCall&&targetRegister&&double.IsFinite(delta)&&delta<0;
     internal static bool Died(bool? previouslyAlive,bool alive,double delta)=>previouslyAlive==true&&!alive&&double.IsFinite(delta)&&delta<0;
 }
 internal sealed record ComponentDamage(string Text,bool Fatal)

@@ -1,13 +1,16 @@
-# Shell Selector 0.13.0 — Beta
+# Sprocket Shell Selector 0.13.2 — beta
 
-- Create and duplicate shells in the in-game modular editor. Choose body, effect, tail, propulsion and carrier, then Save to refresh compatible profiles.
-- A wire-guided TOW-inspired example includes cable gravity and ground settling after detachment.
-- Optional on-screen damage feed shows penetration, remaining penetration, detected crew/component damage and ERA activation.
-- Works with the new placeable ERA presets and matching Material Selector 0.5.0 catalogues.
-- HEAT and HESH preserve their configured penetration budget across flight distance; armour angle and spacing still affect impacts.
+Changes since the public 0.13.0 release:
 
-The shared JSON Editor 0.1.0 is included and required. Keep customized profiles and native Technology files. Unsupported module combinations remain drafts; existing live shells are preserved. HESH is a perforation/spall approximation. Damage reporting can miss secondary events; no full tandem or physical shaped-charge simulation is provided.
+- **Stronger full-calibre recoil:** HE, APHE and other non-rocket full-bore profiles now retain at least the native recoil of the same cannon and propellant charge. Penetration and damage balance are unchanged. APFSDS and ATGM recoil remain unchanged.
+- **Cleaner damage feed:** crew and component messages report direct projectile and spall damage. Repeated messages from ongoing fires are excluded, and repeated hits on the same component within one shot are combined. Penetration and ERA activation remain visible.
 
-<!-- sp-compat {"hamish.sprocket": "0.2.55.5", "bepinex.bepinex": "6.0.0-be.788"} -->
+## Requirements and update
+
+For Sprocket **0.2.55.5** and **BepInEx 6 IL2CPP 6.0.0-be.788**. **Sprocket JSON Editor 0.1.0 is required and included.** Armour responses with Material Selector require **Material Selector 0.5.0** and the matching response catalogue.
+
+Close the game, back up the files you replace, and extract the installation ZIP into the folder containing Sprocket.exe. Keep one copy of each plugin. Preserve custom CFG, shell/module JSON, keybinds, audio overrides and edited Technology files. No configuration changes are required for these fixes. The source ZIP is for developers.
 
 [Support my ChatGPT budget and help me reverse engineer Sprocket to make more mods.](https://www.paypal.com/donate/?hosted_button_id=7PE3SDBETXFQ6)
+
+<!-- sp-compat {"hamish.sprocket": "0.2.55.5", "bepinex.bepinex": "6.0.0-be.788"} -->

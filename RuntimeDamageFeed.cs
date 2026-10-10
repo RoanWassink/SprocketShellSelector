@@ -38,7 +38,9 @@ internal static class RuntimeDamageFeed
     private static ConfigEntry<string> corner=null!;
     private static int number,mainThread;
     internal static bool Ready;
-    private static readonly Dictionary<(IntPtr,int), (float Time,ComponentDamage Damage)> uncorrelated=new();
+    [ThreadStatic] private static int directDamageDepth;
+    [ThreadStatic] private static IntPtr directDamageRegister;
+    internal readonly record struct HealthScope(int Depth,IntPtr Register);
     private static float playingUntil;
     private static bool editor=true;
     private static int warnings;private static int probes;private static int poolProbes,healthProbes;
@@ -59,7 +61,7 @@ internal static class RuntimeDamageFeed
     internal static void DrawOptions(IGUIElementDrawer ui,Action refresh)
     {
         if(enabled==null)return;
-        ui.ToggleField("Damage feed in Play",Enabled,Ui.BoolCallback(v=>{enabled.Value=v;if(!v)Buffer.Clear();refresh();}),"Show actual penetrations, ERA reactions and native health changes. No input capture.");
+        ui.ToggleField("Damage feed in Play",Enabled,Ui.BoolCallback(v=>{enabled.Value=v;if(!v)Buffer.Clear();refresh();}),"Show actual penetrations, ERA reactions and direct shot damage. No input capture.");
         if(Enabled)
         {
             var labels=new Il2CppSystem.Collections.Generic.List<string>();labels.Add("Upper right");labels.Add("Upper left");
@@ -153,29 +155,53 @@ internal static class RuntimeDamageFeed
     });}
     private static void Emit(Pool previous,bool alive,float delta)
     {
-        if(!Enabled||editor||Time.unscaledTime>=playingUntil||!float.IsFinite(delta)||delta>=0)return;
+        if(!Enabled||editor||Time.unscaledTime>=playingUntil||!DamageFeedTruth.DirectDamage(current!=null,directDamageDepth>0,delta,previous.Register==directDamageRegister))return;
         var owner=previous.Owner;if(owner==null||owner.VehicleRoot is not {} root)return;
         var label=Label(owner);bool dead=DamageFeedTruth.Died(previous.Alive,alive,delta);
         string line=owner.TryCast<CrewSeat>()!=null?(dead?$"Crew member {label} killed":$"Crew member {label} wounded"):(dead?label+" destroyed":label+" damaged");
         var key=(root.Pointer,owner.VUID.Value);var damage=new ComponentDamage(line,dead);
         if(current is {} shot)
         {if(shot.Damage.TryGetValue(key,out var prior))shot.Damage[key]=prior.Merge(damage);else if(shot.Damage.Count<24)shot.Damage[key]=damage;}
-        else
-        {var now=Time.unscaledTime;foreach(var stale in uncorrelated.Where(p=>now-p.Value.Time>=.5f||now<p.Value.Time).ToArray())uncorrelated.Remove(stale.Key);if(uncorrelated.TryGetValue(key,out var prior)){if(prior.Damage.Fatal||!dead)return;}if(uncorrelated.Count<64||uncorrelated.ContainsKey(key)){uncorrelated[key]=(now,damage);Buffer.Add(now,new[]{"Damage event: "+line});}}
+
     }
     internal static void Linked(VehicleHealthRegister register,IDurable durable,int id)
     {Safe(()=>{if(Environment.CurrentManagedThreadId!=mainThread||durable==null)return;if(register.objectReader?.TryGet<VehicleComponent>(new VUID(id),out var owner)==true&&owner!=null&&owner.VUID.Value==id)PoolCreated(register,owner,durable);else HealthProbe(true,$"link unresolved register={register.Pointer} durable={durable.Pointer} id={id}");});}
     internal static void ObserveRegister(VehicleHealthRegister register)
     {Safe(()=>{if(Environment.CurrentManagedThreadId!=mainThread)return;var lookup=register.register?.lookup;if(lookup==null)return;foreach(var pair in lookup){var durable=pair.Value;if(durable==null)continue;if(!pools.TryGetValue(durable.Pointer,out var previous)){Linked(register,durable.Cast<IDurable>(),pair.Key);continue;}var info=durable.HealthInfo;var delta=info.Current-previous.Value;pools[durable.Pointer]=previous with {Alive=info.Alive,Value=info.Current};if(float.IsFinite(delta)&&delta<0){HealthProbe(false,$"observed native pool durable={durable.Pointer} component={previous.Owner.ComponentID} delta={delta} alive={info.Alive}");Emit(previous,info.Alive,delta);}}});}
 
+    internal static HealthScope BeginDirectDamage(VehicleHealthRegister register)
+    {
+        var previous=new HealthScope(directDamageDepth,directDamageRegister);
+        if(current==null||Environment.CurrentManagedThreadId!=mainThread)return previous;
+        // Preserve an outer committed delta before resetting the same nested target baseline.
+        if(previous.Depth>0&&previous.Register==register.Pointer)ObserveRegister(register);
+        // Sample this register before the exact native damage call; unrelated earlier
+        // fire/health changes become baseline and cannot be credited to this shot.
+        directDamageDepth=0;
+        ObserveRegister(register);
+        directDamageDepth=current!=null?previous.Depth+1:0;
+        directDamageRegister=current!=null?register.Pointer:IntPtr.Zero;
+        return previous;
+    }
+    internal static void EndDirectDamage(VehicleHealthRegister register,HealthScope previous)
+    {try{if(directDamageDepth>0&&directDamageRegister==register.Pointer)ObserveRegister(register);}finally{directDamageDepth=previous.Depth;directDamageRegister=previous.Register;}}
+
     internal static void ReleaseHealth(VehicleHealthRegister __instance)
     {Safe(()=>{foreach(var pair in pools.Where(p=>p.Value.Register==__instance.Pointer).ToArray())pools.Remove(pair.Key);});}
-    internal static void Clear(){Buffer.Clear();pools.Clear();uncorrelated.Clear();active=null;current=null;DamageFeedHud.Destroy();}
+    internal static void Clear(){Buffer.Clear();pools.Clear();directDamageDepth=0;directDamageRegister=IntPtr.Zero;active=null;current=null;DamageFeedHud.Destroy();}
 }
 
 [HarmonyPatch]
 internal static class RuntimeDamageHealth
 {
+    [HarmonyPrefix,HarmonyPatch(typeof(VehicleHealthRegister),nameof(VehicleHealthRegister.Sprocket_DamageModelling_IDamageApplier_HealthDelta),new[]{typeof(int),typeof(float),typeof(DamageModelDamageModifiers)})]
+    private static void BeginDirectOne(VehicleHealthRegister __instance,out RuntimeDamageFeed.HealthScope __state)=>__state=RuntimeDamageFeed.BeginDirectDamage(__instance);
+    [HarmonyFinalizer,HarmonyPatch(typeof(VehicleHealthRegister),nameof(VehicleHealthRegister.Sprocket_DamageModelling_IDamageApplier_HealthDelta),new[]{typeof(int),typeof(float),typeof(DamageModelDamageModifiers)})]
+    private static void EndDirectOne(VehicleHealthRegister __instance,RuntimeDamageFeed.HealthScope __state)=>RuntimeDamageFeed.EndDirectDamage(__instance,__state);
+    [HarmonyPrefix,HarmonyPatch(typeof(VehicleHealthRegister),nameof(VehicleHealthRegister.Sprocket_DamageModelling_IDamageApplier_HealthDelta),new[]{typeof(float),typeof(DamageModelDamageModifiers)})]
+    private static void BeginDirectAll(VehicleHealthRegister __instance,out RuntimeDamageFeed.HealthScope __state)=>__state=RuntimeDamageFeed.BeginDirectDamage(__instance);
+    [HarmonyFinalizer,HarmonyPatch(typeof(VehicleHealthRegister),nameof(VehicleHealthRegister.Sprocket_DamageModelling_IDamageApplier_HealthDelta),new[]{typeof(float),typeof(DamageModelDamageModifiers)})]
+    private static void EndDirectAll(VehicleHealthRegister __instance,RuntimeDamageFeed.HealthScope __state)=>RuntimeDamageFeed.EndDirectDamage(__instance,__state);
     [HarmonyPostfix,HarmonyPatch(typeof(VehicleHealthRegister),nameof(VehicleHealthRegister.LinkHealthPool))]
     private static void Linked(VehicleHealthRegister __instance,IDurable __0,int __1)=>RuntimeDamageFeed.Linked(__instance,__0,__1);
     [HarmonyPrefix,HarmonyPatch(typeof(VehicleHealthRegister),nameof(VehicleHealthRegister.Update))]

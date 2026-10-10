@@ -5,7 +5,7 @@ using HarmonyLib;
 using Il2CppInterop.Runtime;
 using UnityEngine.Events;
 namespace SprocketShellSelector;
-[BepInPlugin("sprocket.shellselector", "Sprocket Shell Selector", "0.13.0")]
+[BepInPlugin("sprocket.shellselector", "Sprocket Shell Selector", "0.13.2")]
 [BepInDependency("sprocket.jsoneditor", ">=0.1.0 <0.2.0")]
 public sealed class Plugin : BasePlugin
 {
@@ -54,7 +54,7 @@ public sealed class Plugin : BasePlugin
             Log.LogError($"Shell selector disabled: {ex}");
             return;
         }
-        Log.LogInfo("Sprocket Shell Selector v0.13.0 loaded.");
+        Log.LogInfo("Sprocket Shell Selector v0.13.2 loaded.");
         var armourHarmony=new Harmony("sprocket.shellselector.armourresponses");
         try{if(RuntimeArmourResponses.Configure())armourHarmony.PatchAll(typeof(RuntimeArmourResponses));}
         catch(Exception ex){armourHarmony.UnpatchSelf();Log.LogWarning("[Armour response] Optional adapter disabled: "+ex.Message);}

@@ -1180,3 +1180,34 @@ var eraPriorityRows=DamageFeedActivations.Compose(eraHud.Rows,Enumerable.Range(0
 Check(eraPriorityRows.Length==12&&eraPriorityRows.Take(2).All(r=>r.StartsWith("ERA activated"))&&eraPriorityRows.Count(r=>r.StartsWith("health"))==8,"manylayersandhealthcannottruncate actualERArows");
 Check(eraHud.Record("brick1",true,true,"heavyEra","Relikt brick")&&eraHud.Record("brick2",true,true,"heavyEra","Duplet brick")&&!eraHud.Record("brick3",true,true,"heavyEra","Nizh brick"),"activationrecords bounded4 perimpactincludingplacedandplate");
 Console.WriteLine($"PLATE ERA HUD PASS: {checks} checks.");
+
+// Native energy/barrel-length recoil parity; terminal ballistic records remain untouched.
+foreach(var recoilCalibre in new[]{20d,75d,120d,200d})
+{
+    var fullMass=1.59e-5*Math.Pow(recoilCalibre,3);
+    var baseline=.5*fullMass*800*800/4;
+    Check(ShellRecoil.Restore(baseline*.1,fullMass,800,4,false)==baseline,"light terminal proxy retains native full-bore charge recoil");
+    Check(ShellRecoil.Restore(baseline*2,fullMass,800,4,false)==baseline*2,"stronger existing native impulse retained");
+    Check(ShellRecoil.Restore(baseline*.1,fullMass,800,4,true)==baseline*.1,"missile/sabot carrier output retained");
+    Check(ShellRecoil.Restore(7,fullMass,800,0,false)==7,"invalid native barrel retains output");
+}
+Check(ShellRecoil.Restore(7,1,400,4,false)*4==ShellRecoil.Restore(7,1,800,4,false),"native charge velocity squared scaling");
+Check(ShellRecoil.Restore(7,1,800,8,false)*2==ShellRecoil.Restore(7,1,800,4,false),"native inverse barrel length scaling");
+Check(ShellRecoil.Restore(7,double.NaN,800,4,false)==7,"invalid native mass retains output");
+Check(ShellRecoil.Restore(7,1,double.PositiveInfinity,4,false)==7,"invalid native velocity retains output");
+Console.WriteLine($"NATIVE RECOIL PASS: {checks} checks.");
+
+Check(DamageFeedTruth.DirectDamage(true,true,-10),"direct projectile/spall damage emitted in exact native call");
+Check(!DamageFeedTruth.DirectDamage(false,false,-10),"ongoing fire outside impact omitted");
+Check(!DamageFeedTruth.DirectDamage(true,false,-10),"ambient health notification during shot omitted");
+Check(!DamageFeedTruth.DirectDamage(false,true,-10),"native damage call without projectile impact omitted");
+Check(!DamageFeedTruth.DirectDamage(true,true,0)&&!DamageFeedTruth.DirectDamage(true,true,10),"no damage or healing omitted");
+Check(!DamageFeedTruth.DirectDamage(true,true,double.NaN),"invalid health delta omitted");
+var directSameShot=new Dictionary<int,ComponentDamage>();
+foreach(var d in new[]{new ComponentDamage("Transmission damaged",false),new ComponentDamage("Transmission damaged",false),new ComponentDamage("Transmission destroyed",true),new ComponentDamage("Transmission damaged",false)})
+    directSameShot[1]=directSameShot.TryGetValue(1,out var priorDirect)?priorDirect.Merge(d):d;
+Check(directSameShot.Count==1&&directSameShot[1].Fatal,"same-shot component fragments dedup with fatal priority");
+Console.WriteLine($"DIRECT DAMAGE FEED PASS: {checks} checks.");
+
+Check(!DamageFeedTruth.DirectDamage(true,true,-10,false),"unrelated register callback cannotbecreditedtonested directshot");
+Console.WriteLine($"DIRECT REGISTER MATCH PASS: {checks} checks.");

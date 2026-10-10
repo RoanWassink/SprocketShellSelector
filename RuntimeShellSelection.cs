@@ -324,8 +324,32 @@ internal static class RuntimeShellSelection
     }
 
     [HarmonyPostfix, HarmonyPatch(typeof(ProjectileRegister), nameof(ProjectileRegister.Launch))]
-    private static void Spawned(ProjectileRegister __instance, ref ProjectileFireInfo fireInfo)
+    private static void Spawned(ProjectileRegister __instance, Il2CppSystem.Object source,
+        ref ProjectileLauncherInfo launcherInfo, ref ProjectileFireInfo fireInfo)
     {
+        if (LaunchAccepted)
+        {
+            try
+            {
+                var cannon=source?.TryCast<CannonBehaviour>()?.mount?.TryCast<Cannon>();
+                if(cannon!=null && __instance.activeIdMap.TryGetValue(fireInfo.ProjectileID,out var index))
+                {
+                    var projectile=__instance.pool[index];
+                    if(ImpactProfiles.TryGetValue(projectile.Definition.Guid.ToString(),out var impact))
+                    {
+                        var profile=impact.Item5;
+                        var missile=ShellBalance.Powered(profile) || ShellBalance.Carrier(profile)!="fullBore";
+                        var before=fireInfo.Impulse;
+                        var after=(float)ShellRecoil.Restore(before,ShellProperties.GetProjectileMass(cannon.Blueprint.Caliber),
+                            cannon.Blueprint.MuzzleVelocity,launcherInfo.BarrelLength,missile);
+                        fireInfo=new ProjectileFireInfo(fireInfo.ProjectileID,after,fireInfo.KineticEnergy);
+                        if(diagnostics.Value && after!=before)
+                            Plugin.ModLog.LogInfo($"[Recoil] profile={profile.Id} projectile={fireInfo.ProjectileID} nativeChargeMinimum={after:0.0} previous={before:0.0}; terminal ballistics retained.");
+                    }
+                }
+            }
+            catch(Exception ex){Plugin.ModLog.LogWarning("[Recoil] Native firing output retained: "+ex.Message);}
+        }
         if (!diagnostics.Value || !LaunchAccepted) return;
         var id = fireInfo.ProjectileID;
         Guard("Spawn diagnostics", () => LogSpawn(__instance, id));
